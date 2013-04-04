@@ -1,3 +1,4 @@
+"""Contains basic astronomical constants and functions"""
 from numpy import pi, array, dot
 from math import cos, sin
 import datetime

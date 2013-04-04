@@ -1,3 +1,4 @@
+"""Implements the Tides class"""
 import tidal
 import datetime
 import numpy
