@@ -1,7 +1,8 @@
 """Contains basic astronomical constants and functions"""
-from numpy import pi, array, dot
-from math import cos, sin
+import numpy
+import math
 import datetime
+from math import pi
 
 day = 86400
 julian_year = 365.25*day
@@ -37,7 +38,7 @@ where T is T=(27392.500528+1.0000000356*D)/36525, where D is number of days sinc
 which roughly means T is n/o julian centuries since 1 Jan 1899, 12 noon (!) (with day length corection?)
 phases here are in degrees, not radians!
 Supplemented by formulas for N and p' from Kowalik and Luick"""
-Schwiderski_matrix = array([
+Schwiderski_matrix = numpy.array([
        # These are (s,h,p) at 1 Jan 1899 12 noon(!) in degrees
        [270.434358, 279.69668, 334.329653, 259.18344, 281.22084],
        # phase speeds degree/julian_century - should be equal to omega above
@@ -83,7 +84,7 @@ lunar_doodson_numbers = {
 # now we can compute the frequencies of the tidal constituents
 omega={}
 for constituent,doodson_numbers in lunar_doodson_numbers.items():
-  omega[constituent] = dot(doodson_numbers, astronomical_omegas)
+  omega[constituent] = numpy.dot(doodson_numbers, astronomical_omegas)
 
 # sanity check that solar S2 is exactly 12 hours
 assert(abs(omega['S2']-2*pi/day*2)<1e-10)
@@ -119,7 +120,7 @@ def astronomical_argument(time):
     H = float(td.seconds)/day*360. # fraction of the day since last noon time 360
 
     T = (27392.500528+1.0000000356*D)/36525 # big T in Schwiderski
-    s,h,p,N,pp = dot(Schwiderski_matrix, [1.0, T, T**2, T**3])
+    s,h,p,N,pp = numpy.dot(Schwiderski_matrix, [1.0, T, T**2, T**3])
     return H,s,h,p,N,pp
 
 nodal_correction_f0 = {
@@ -161,9 +162,9 @@ def nodal_corrections(constituents, N, pp):
   # compute the 18.6 year variations (pp is currently not used)
   # the numbers come from Kowalik and Luick, table 1.6
   f=[]; u=[]
-  cosN = cos(N*deg2rad)
+  cosN = math.cos(N*deg2rad)
   cosNsq = cosN**2
-  sinN = sin(N*deg2rad)
+  sinN = math.sin(N*deg2rad)
   for constituent in constituents:
     # amplitude corrections:
     f0 = nodal_correction_f0.get(constituent, 1.0)
@@ -173,12 +174,12 @@ def nodal_corrections(constituents, N, pp):
     # phase corrections:
     u.append(nodal_correction_u1.get(constituent, 0.0)*sinN)
 
-  return f,u
+  return numpy.array(f), numpy.array(u)
 
 def tidal_arguments(constituents, time):
     H,s,h,p,N,pp = astronomical_argument(time)
     arguments = []
     for constituent in constituents:
-      arguments.append( (dot(solar_doodson_numbers[constituent], [H,s,h,p]) 
+      arguments.append( (numpy.dot(solar_doodson_numbers[constituent], [H,s,h,p]) 
         + tidal_phase_origin[constituent]) * deg2rad )
-    return arguments
+    return numpy.array(arguments)
