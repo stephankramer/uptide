@@ -14,7 +14,8 @@ class Tides(object):
     else:
       self.constituents = tidal.omega.keys()
 
-    self.omega = [tidal.omega[constituent] for constituent in self.constituents]
+    self.omega = numpy.array(
+        [tidal.omega[constituent] for constituent in self.constituents])
     self.phi = None # Greenwich argument
     self.f = None # nodal amplitude correction
     self.u = None # nodal phase correction
