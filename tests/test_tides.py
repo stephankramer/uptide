@@ -58,3 +58,6 @@ class TestTidal(unittest.TestCase):
     from_complex = self.tide.from_complex_components(real, imag, t)
     self.assertAlmostEqual(numpy.linalg.norm(from_ap-from_complex), 0.0)
 
+  def test_all_constituents_are_tested(self):
+    self.assertEqual(set(uptide.tidal.omega.keys()), set(self.tide.constituents))
+
