@@ -27,6 +27,7 @@ class TestTidal(unittest.TestCase):
           'Z0',
           'Sa',
           'O1',
+          'S1',
           'Ssa'])
     self.tide.set_initial_time(datetime.datetime(2003,1,17,19,30))
 
@@ -37,14 +38,14 @@ class TestTidal(unittest.TestCase):
         [ 0.17238093,  0.        , -0.28251319,  0.        ,  0.        ,
           -0.03351851, -0.06703702, -0.06703702, -0.14205465, -0.37828036,
           0.        , -0.03351851, -0.03351851,  0.        ,  0.        ,
-          0.17238093,  0.        ]):
+          0.17238093,  0.        ,  0.0]):
       self.assertAlmostEqual(x,y)
     # test amplitude corrections
     for x,y in zip(self.tide.f,
         [ 1.08465367,  1.        ,  1.13970561,  0.94740654,  1.        ,
           0.98503109,  0.97028625,  0.97028625,  1.05252498,  1.21048994,
           1.        ,  0.98503109,  0.98503109,  1.        ,  1.        ,
-          1.08465367,  1.        ]):
+          1.08465367,  1.        ,  1.0]):
       self.assertAlmostEqual(x,y)
 
   def test_ap_vs_complex(self):
