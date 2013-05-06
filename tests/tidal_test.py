@@ -1,5 +1,5 @@
-import tidal_netcdf
-import tidal_composer
+import uptide.tidal_netcdf
+import uptide
 from datetime import datetime, timedelta
 from numpy import arange, loadtxt
 from math import cos, pi
@@ -13,10 +13,10 @@ lon = -3.287
 dt0 = datetime(2003,3,28,0,0,0)
 trange = arange(0.,24.*32., 0.25)*3600.
 
-tide = tidal_composer.Tides(constituents)
+tide = uptide.Tides(constituents)
 tide.set_initial_time(dt0)
 
-tn = tidal_netcdf.AMCGTidalInterpolator(tide,
+tn = uptide.tidal_netcdf.AMCGTidalInterpolator(tide,
         '/home/skramer/bld/OTPSnc/ES2008/DATA/ap.ES2008.nc',
         ranges=((58.0,61.0),(-4.0,0.0)))
 
@@ -29,7 +29,7 @@ for t in trange:
 figure()
 plot(trange, etas)
 
-tnci=tidal_netcdf.OTPSncTidalInterpolator(tide,
+tnci=uptide.tidal_netcdf.OTPSncTidalInterpolator(tide,
          '/home/skramer/bld/OTPSnc/ES2008/DATA/gridES2008.nc',
          '/home/skramer/bld/OTPSnc/ES2008/DATA/hf.ES2008.nc',
         ranges=((-4.0,0.0),(58.0,61.0)))
@@ -41,7 +41,7 @@ for t in trange:
 
 plot(trange, etas2)
 
-tnci=tidal_netcdf.FESTidalInterpolator(tide,
+tnci=uptide.tidal_netcdf.FESTidalInterpolator(tide,
          '/home/skramer/data/tide.fes2004.nc',
         ranges=((58.0,61.0),(356.,360.0)))
 etas3 = []
