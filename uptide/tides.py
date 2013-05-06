@@ -5,10 +5,13 @@ import numpy
 import math
 
 class Tides(object):
+
   """Class for tidal computations."""
+  
   def __init__(self, constituents=None):
-    """Initialise tidal computation class. If no components are specified
-    all known components are included."""
+    """Initialise tidal computation class. If no constituents are specified
+    all known constituents are included. The used constituents can be queried
+    from the constituents attribute."""
     if constituents is not None:
       self.constituents = constituents
     else:
