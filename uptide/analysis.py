@@ -2,6 +2,10 @@ import numpy
 import numpy.linalg
 
 def harmonic_analysis(tide, x, t):
+  """Perform tidal harmonic analysis for a given signal x at times t. 
+  Returns the amplitudes and phases of the constituents defined in tide 
+  (a Tides object), in the order of tide.constituents. The times t are 
+  in seconds after the date time set with tide.set_initial_time()."""
   if len(x)!=len(t):
     raise Exception("Length of x and t should be the same")
   N = len(t)

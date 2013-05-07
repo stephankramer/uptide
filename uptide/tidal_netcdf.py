@@ -7,6 +7,50 @@ _deg2rad = numpy.pi/180.
 class TidalNetCDFInterpolator(object):
   def __init__(self, tide, grid_file_name, dimensions, coordinate_fields,
       ranges=None, mask=None):
+    """Initiate a TidalNetCDFInterpolator. The specification of the names of the dimensions
+    and coordinate_fields is the same as for the NetCDFInterpolator class, see its documentation.
+    ranges and mask may be specified in a similar way to the NetCDFInterpolator class.
+    NOTE: setting a correct coordinate ranges is strongly recommended when reading 
+    from a NetCDF data base that is significantly bigger than the region of interest,
+    as otherwise the tidal signal will be reconstructed for all points of the NetCDF grid
+    leading to very slow computations. In parallel the ranges should be set to the coordinate
+    range of the local process domain.
+
+    The tides may be stored as amplitudes and phases or as the real and complex components.
+    For both cases they may be stored in separate fields for each constituent, or in one 3D
+    field, where the third dimension corresponds to the different constituents. This third dimension
+    should be the first (outer) dimension of the field as stored in the NetCDF file. The methods
+    corresponding to these four storage formats are:
+
+      tnci.load_amplitudes_and_phases("amplitude_file.nc", ("M2amp", "S2amp", "K1amp"), 
+         "phase_file.nc", ("M2phase", "S2phase", "K1phase"))
+      tnci.load_complex_components("realcomp_file.nc", ("M2real", "S2real", "K1real"), 
+         "imagcomp_file.nc", ("M2imag", "S2imag", "K1imag"))
+      tnci.load_amplitudes_and_phases_block("amplitude_file.nc", "amplitude_field", (0,1,2),
+         "phase_file.nc", "phase_field", (0,1,2))
+      tnci.load_complex_components("realcomp_file.nc", "real_component", (0,1,2),
+         "imag_component", (0,1,2))
+
+    The specified consituents should corresponds to tide.constituents. In the last two cases, 
+    "amplitude_field", "phase_field", "real_component", and "imag_component" refer to the
+    3D field, and (0,1,2) which indices in the first dimension of that field corresponds to which of 
+    the constituents. In the first two cases instead of specifying a single file for all consituents, an array
+    of filenames may also be provided to specify a separate file for each consituent.
+
+    Three helper functions are available to create a TidalNetCDFInterpolator based on three
+    different conventions for storage format: OTPSncTidalInterpolator, FESTidalInterpolator and
+    AMCGTidalInterpolator. These inititate a TidalNetCDFInterpolator and call the correct load_...() method.
+
+    After this, the calling sequence is:
+
+      tnci.set_time(t) # t in seconds after the datetime set with tide.set_initial_time()
+      tnci.get_val(x)  # interpolate the tidal signal in location x
+
+    Note that each call to set_time() the tidal signal is reconstructed in all points of the (restricted)
+    NetCDF grid. Therefore this method is only efficient if a significant number of interpolations are
+    done for each time.
+
+    """
     self.tide = tide
     self.grid_file_name = grid_file_name
     self.nci = netcdf_reader.NetCDFInterpolator(grid_file_name, dimensions,
@@ -28,6 +72,11 @@ class TidalNetCDFInterpolator(object):
 
   def load_amplitudes_and_phases(self, amplitude_file_name, amplitude_field_names,
       phase_file_name, phase_field_names):
+    """Load amplitude and phases of the different constituents where amplitudes
+    and phases are stored as separate fields in the NetCDF. The amplitude and phase
+    field names should be in the same order as tide.constituents. ampltide and 
+    phase file_name may be a single string, or an array of strings to indicate
+    seperate filenames for each constituent."""
 
     amp = numpy.array(self._collect_fields_val(amplitude_file_name, amplitude_field_names))
     phase = numpy.array(self._collect_fields_val(phase_file_name, phase_field_names))
@@ -40,6 +89,11 @@ class TidalNetCDFInterpolator(object):
 
   def load_complex_components(self, real_file_name, real_field_names,
       imag_file_name, imag_field_names):
+    """Load real and imaginary component of the different constituents where the complex 
+    components are stored as separate fields in the NetCDF. The complex component
+    field names should be in the same order as tide.constituents. 
+    The file_name may be a single string, or an array of strings to indicate
+    seperate filenames for each constituent."""
     self.real_part = numpy.array(self._collect_fields_val(real_file_name, real_field_names))
     self.imag_part = numpy.array(self._collect_fields_val(imag_file_name, imag_field_names))
     
@@ -65,6 +119,11 @@ class TidalNetCDFInterpolator(object):
   def load_amplitudes_and_phases_block(self,
       amplitude_file_name, amplitude_field_name, amplitude_field_components, 
       phase_file_name, phase_field_name, phase_field_components):
+    """Load amplitude and phases of the different constituents where amplitudes
+    and phases are stored in a single 3d field. The first dimension of this
+    field should correspond the different constituents stored. ..._field_components
+    refers to which indices of this first dimension correspond to the constituents
+    specified in tide.consituents."""
     
     amp = numpy.array(self._collect_fields_block(amplitude_file_name, amplitude_field_name, amplitude_field_components))
     phase = numpy.array(self._collect_fields_block(phase_file_name, phase_field_name, phase_field_components))
@@ -74,6 +133,11 @@ class TidalNetCDFInterpolator(object):
   def load_complex_components_block(self, 
       real_file_name, real_field_name, real_field_components,
       imag_file_name, imag_field_name, imag_field_components):
+    """Load complex components of the different constituents where the components
+    are stored in a single 3d field. The first dimension of this
+    field should correspond the different constituents stored. ..._field_components
+    refers to which indices of this first dimension correspond to the constituents
+    specified in tide.consituents."""
 
     self.real_part = numpy.array(self._collect_fields_block(real_file_name, real_field_name, real_field_components))
     self.imag_part = numpy.array(self._collect_fields_block(imag_file_name, imag_field_name, imag_field_components))
@@ -92,12 +156,16 @@ class TidalNetCDFInterpolator(object):
     return val
 
   def set_time(self, t):
+    """Set the time in seconds after the datetime specified by tide.set_initial_time(). Recomputes
+    the tidal signal on all points of the NetCDF grid."""
     if not hasattr(self,"real_part"):
       raise Exception("Need to call load_amplitudes_and_phases() first!")
     val = self.tide.from_complex_components(self.real_part, self.imag_part, t)
     self.interpolator = netcdf_reader.Interpolator(self.nci.origin, self.nci.delta, val, self.nci.mask)
 
   def get_val(self, x):
+    """Interpolates the tidal signal in point x, computed in set_time(). The order 
+    of the coordinates x is determined by the storage order in the NetCDF file."""
     if not hasattr(self,"interpolator"):
       raise Exception("Need to call set_time() first!")
     return self.interpolator.get_val(x)
@@ -106,6 +174,10 @@ def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
   tnci = TidalNetCDFInterpolator(tide, netcdf_file_name,
         ('latitude','longitude'),('latitude','longitude'),
         ranges=ranges)
+  """Create a TidalNetCDFInterpolator based on the 'AMCG' storage conventions
+  where amplitudes and phases are stored in separate fields in a single file
+  with field names such as M2amp, M2phase, etc. If present a field named "mask"
+  with 0.0 for land and 1.0 for sea will also be recognized."""
   if "mask" in tnci.nci.nc.variables:
     tnci.set_mask("mask")
 
@@ -120,6 +192,10 @@ def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
 
 def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
     ranges=None):
+  """Create a TidalNetCDFInterpolator from OTPSnc NetCDF files, where
+  the grid is stored in a separate file (with "lon_z", "lat_z" and "mz"
+  fields). The actual data is read from a seperate file with hRe and hIm
+  fields."""
   # read grid, ranges and mask from grid netCDF
   tnci = TidalNetCDFInterpolator(tide, grid_file_name,
       ('nx','ny'), ('lon_z','lat_z'), ranges=ranges)
@@ -141,6 +217,9 @@ def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
   
 def FESTidalInterpolator(tide, fes_file_name, ranges=None):
   # read grid, ranges and mask from grid netCDF
+  """Create a TidalNetCDFInterpolator from FES NetCDF files, where
+  all constituents are stored in a single file. The amplitudes
+  and phases are read from its Ha and Hg fields."""
   tnci = TidalNetCDFInterpolator(tide, fes_file_name,
       ('Y','X'), ('lat','lon'), ranges=ranges)
   fill_value = tnci.nci.nc.variables['Ha'].missing_value
