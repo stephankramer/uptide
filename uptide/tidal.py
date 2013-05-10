@@ -4,7 +4,7 @@ import math
 import datetime
 from math import pi
 
-day = 86400
+day = 86400.
 julian_year = 365.25*day
 julian_century = 100*julian_year
 
@@ -111,7 +111,8 @@ def astronomical_argument(time):
     # time should be specified as a datetime object
     # compute the timedelta since 1975-1-1
     td = time-datetime.datetime(1975,1,1,0,0)
-    D = td.total_seconds()/day + 1.0 # days since 1975-1-1 counting from 1
+    # don't use total_seconds() as that's python2.7
+    D = td.days + td.seconds/day + 1.0 # days since 1975-1-1 counting from 1
     # Note that in TABLE 1 of Schwiderski there is no H
     # This is because there D is assumed integer (i.e. it computes \chi for
     # midnight universal time), to add in the contribution for H keeping
