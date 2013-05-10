@@ -14,19 +14,19 @@ class TestNetCDFInterpolator(unittest.TestCase):
   """Tests the uptide.netcdf.NetCDFInterpolator class"""
   def setUp(self):
     zval = array(
-        [[f(lat,lon) for lon in arange(10)]
-                     for lat in arange(10)])
+        [[f(lat,lon) for lon in arange(10.0)]
+                     for lat in arange(10.0)])
     nc = NetCDFFile('test.nc', 'w')
     nc.createDimension('lat', 10)
     nc.createDimension('lon', 10)
     nc.createVariable('latitude', 'float64', ('lat',))
     nc.createVariable('longitude', 'float64', ('lon',))
-    nc.variables['latitude'][:] = arange(10)
-    nc.variables['longitude'][:] = arange(10)
+    nc.variables['latitude'][:] = arange(10.0)
+    nc.variables['longitude'][:] = arange(10.0)
     nc.createVariable('z', 'float64', ('lat','lon'))
     nc.variables['z'][:,:] = zval
     nc.createVariable('mask', 'float64', ('lat','lon'))
-    mask = ones((10,10))
+    mask = ones((10,10),dtype='float64')
     mask[0:2,:] = 0.0
     nc.variables['mask'][:,:] = mask
     nc.close()
@@ -92,13 +92,6 @@ class TestNetCDFInterpolator(unittest.TestCase):
   # test all permutations of the calling sequence set_field, set_mask, set_ranges
   # including all permutations that only call 1 or 2 of these methods
   # set_field should always be called
-  def test_all_permutations(self):
-    for n in range(1,4):
-      for perm in itertools.permutations(['field','mask','ranges'], n):
-        if not 'field' in perm:
-          continue
-        self._test_permutation(perm)
-
   def test_all_permutations(self):
     for n in range(1,4):
       for perm in itertools.permutations(['field','mask','ranges'], n):
