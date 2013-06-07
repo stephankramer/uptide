@@ -24,7 +24,17 @@ class Interpolator(object):
   def set_mask(self, mask):
     self.mask = mask
 
-  def get_val(self, x):
+  def find_extrapolation_point(self, x, i, j):
+    ijs = [(i-1, j+1), (i-1, j), (i, j-1), (i+1, j-1), (i+2, j), (i+2, j+1), (i+1, j+2), (i, j+2)] # Neighbouring points
+    ijs += [(i-1, j-1), (i+2, j-1), (i+2, j+2), (i-1, j+2)] # Diagonal points
+
+    for a, b in ijs:
+      if self.mask[a, b]:
+        return a, b
+
+    raise CoordinateError("Interpolation not succesfull", x, i, j)
+
+  def get_val(self, x, allow_extrapolation=False):
     xhat = (x[0]-self.origin[0])/self.delta[0]
     yhat = (x[1]-self.origin[1])/self.delta[1]
     i = math.floor(xhat)
@@ -42,8 +52,15 @@ class Interpolator(object):
         w11 = alpha*beta*self.mask[i+1,j+1]
         value = w00*self.val[...,i,j] + w10*self.val[...,i+1,j] + w01*self.val[...,i,j+1] + w11*self.val[...,i+1,j+1]
         sumw = w00+w10+w01+w11
-        if sumw==0.0:
+
+        if sumw==0.0 and not allow_extrapolation:
           raise CoordinateError("Probing point inside land mask", x, i, j)
+
+        elif sumw==0.0 and allow_extrapolation:
+            print "Need to extrapolate point coordinates ", x
+            a, b = self.find_extrapolation_point(x, i, j)
+            value = self.val[..., a, b]
+
         else:
           value = value/sumw
       else:
@@ -240,8 +257,8 @@ class NetCDFInterpolator(object):
     self.interpolator = Interpolator(self.origin, self.delta, self.val, self.mask)
 
 
-  def get_val(self, x):
+  def get_val(self, x, allow_extrapolation=False):
     """Interpolate the field chosen with set_field(). The order of the coordinates should correspond with the storage order in the file."""
     if not hasattr(self, "interpolator"):
       raise NetCDFInterpolatorError("Should call set_field() before calling get_val()!")
-    return self.interpolator.get_val(x)
+    return self.interpolator.get_val(x, allow_extrapolation)

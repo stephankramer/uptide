@@ -163,12 +163,12 @@ class TidalNetCDFInterpolator(object):
     val = self.tide.from_complex_components(self.real_part, self.imag_part, t)
     self.interpolator = netcdf_reader.Interpolator(self.nci.origin, self.nci.delta, val, self.nci.mask)
 
-  def get_val(self, x):
+  def get_val(self, x, allow_extrapolation=False):
     """Interpolates the tidal signal in point x, computed in set_time(). The order 
     of the coordinates x is determined by the storage order in the NetCDF file."""
     if not hasattr(self,"interpolator"):
       raise Exception("Need to call set_time() first!")
-    return self.interpolator.get_val(x)
+    return self.interpolator.get_val(x, allow_extrapolation)
 
 def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
   tnci = TidalNetCDFInterpolator(tide, netcdf_file_name,
