@@ -24,15 +24,19 @@ class Interpolator(object):
   def set_mask(self, mask):
     self.mask = mask
 
-  def find_extrapolation_point(self, x, i, j):
+  def find_extrapolation_points(self, x, i, j):
     ijs = [(i-1, j+1), (i-1, j), (i, j-1), (i+1, j-1), (i+2, j), (i+2, j+1), (i+1, j+2), (i, j+2)] # Neighbouring points
     ijs += [(i-1, j-1), (i+2, j-1), (i+2, j+2), (i-1, j+2)] # Diagonal points
 
+    extrap_points = []
     for a, b in ijs:
       if self.mask[a, b]:
-        return a, b
+        extrap_points.append((a, b))
 
-    raise CoordinateError("Interpolation not succesfull", x, i, j)
+    if len(extra_points) == 0:
+      raise CoordinateError("Interpolation not succesfull", x, i, j)
+    return extrap_points
+
 
   def get_val(self, x, allow_extrapolation=False):
     xhat = (x[0]-self.origin[0])/self.delta[0]
@@ -58,8 +62,8 @@ class Interpolator(object):
 
         elif sumw==0.0 and allow_extrapolation:
             print "Need to extrapolate point coordinates ", x
-            a, b = self.find_extrapolation_point(x, i, j)
-            value = self.val[..., a, b]
+            extrap_points = self.find_extrapolation_points(x, i, j)
+            value = sum([self.val[..., a, b] for a, b in extrap_points])/len(extrap_points)
 
         else:
           value = value/sumw
