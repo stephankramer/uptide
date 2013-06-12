@@ -30,11 +30,15 @@ class Interpolator(object):
 
     extrap_points = []
     for a, b in ijs:
-      if self.mask[a, b]:
-        extrap_points.append((a, b))
+      try:
+        if self.mask[a, b]:
+          extrap_points.append((a, b))
+      except IndexError:
+        # if we go out of range, ignore this point
+        pass
 
     if len(extra_points) == 0:
-      raise CoordinateError("Interpolation not succesfull", x, i, j)
+      raise CoordinateError("Inside landmask - tried extrapolating but failed", x, i, j)
     return extrap_points
 
 
@@ -57,16 +61,16 @@ class Interpolator(object):
         value = w00*self.val[...,i,j] + w10*self.val[...,i+1,j] + w01*self.val[...,i,j+1] + w11*self.val[...,i+1,j+1]
         sumw = w00+w10+w01+w11
 
-        if sumw==0.0 and not allow_extrapolation:
+        if sumw>0.0:
+          value = value/sumw
+        elif allow_extrapolation:
+          # This should only happen infrequently, so warn user (till someone tells us this is too annoying)
+          print "Need to extrapolate point coordinates ", x
+          extrap_points = self.find_extrapolation_points(x, i, j)
+          value = sum([self.val[..., a, b] for a, b in extrap_points])/len(extrap_points)
+        else:
           raise CoordinateError("Probing point inside land mask", x, i, j)
 
-        elif sumw==0.0 and allow_extrapolation:
-            print "Need to extrapolate point coordinates ", x
-            extrap_points = self.find_extrapolation_points(x, i, j)
-            value = sum([self.val[..., a, b] for a, b in extrap_points])/len(extrap_points)
-
-        else:
-          value = value/sumw
       else:
         value = ((1.0-beta)*((1.0-alpha)*self.val[...,i,j]+alpha*self.val[...,i+1,j])+
                   beta*((1.0-alpha)*self.val[...,i,j+1]+alpha*self.val[...,i+1,j+1]))
