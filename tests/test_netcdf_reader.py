@@ -10,13 +10,20 @@ from numpy import arange, array, ones
 def f(lat, lon):
   return lat*10 + lon
 
+test_file_name1='tests/test_netcdf_reader1.nc'
+test_file_name2='tests/test_netcdf_reader2.nc'
+
 class TestNetCDFInterpolator(unittest.TestCase):
   """Tests the uptide.netcdf.NetCDFInterpolator class"""
   def setUp(self):
+    # it seems that many scipy installations are broken for
+    # netcdf writing - therefore simply committing the
+    # test files instead of writing them out on the fly here
+    return
     zval = array(
         [[f(lat,lon) for lon in arange(10.0)]
                      for lat in arange(10.0)])
-    nc = NetCDFFile('test.nc', 'w')
+    nc = NetCDFFile(test_file_name1, 'w')
     nc.createDimension('lat', 10)
     nc.createDimension('lon', 10)
     nc.createVariable('latitude', 'float64', ('lat',))
@@ -31,7 +38,7 @@ class TestNetCDFInterpolator(unittest.TestCase):
     nc.variables['mask'][:,:] = mask
     nc.close()
     # same thing but without the coordinate fields and mask
-    nc = NetCDFFile('test2.nc', 'w')
+    nc = NetCDFFile(test_file_name2, 'w')
     nc.createDimension('lat', 10)
     nc.createDimension('lon', 10)
     nc.createVariable('z', 'float64', ('lat','lon'))
@@ -39,8 +46,11 @@ class TestNetCDFInterpolator(unittest.TestCase):
     nc.close()
 
   def tearDown(self):
-    os.remove('test.nc')
-    os.remove('test2.nc')
+    # don't remove them either (see above) 
+    return
+    os.remove(test_file_name1)
+    os.remove(test_file_name2)
+    pass
 
   def _test_prepared_nci(self, nci, perm):
     # first the tests common to all permutations
@@ -66,7 +76,7 @@ class TestNetCDFInterpolator(unittest.TestCase):
   # test a specific permutation of the calling sequence set_field, set_mask, set_ranges
   def _test_permutation(self, perm):
     # load the netcdf created in setup()
-    nci = NetCDFInterpolator('test.nc', ('lat', 'lon'), ('latitude', 'longitude'))
+    nci = NetCDFInterpolator(test_file_name1, ('lat', 'lon'), ('latitude', 'longitude'))
     # call the methods in the order given by perm
     for x in perm:
       if x=='field':
@@ -84,7 +94,7 @@ class TestNetCDFInterpolator(unittest.TestCase):
     self._test_prepared_nci(nci, perm)
 
     # now try the same for the case where the field values are stored in a separate file
-    nci2 = NetCDFInterpolator('test2.nc', nci)
+    nci2 = NetCDFInterpolator(test_file_name2, nci)
     nci2.set_field('z')
     self._test_prepared_nci(nci2, perm)
 
