@@ -37,7 +37,7 @@ class Interpolator(object):
         # if we go out of range, ignore this point
         pass
 
-    if len(extra_points) == 0:
+    if len(extrap_points) == 0:
       raise CoordinateError("Inside landmask - tried extrapolating but failed", x, i, j)
     return extrap_points
 
