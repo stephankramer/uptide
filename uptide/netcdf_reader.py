@@ -88,6 +88,10 @@ class Interpolator(object):
       raise CoordinateError("Coordinate out of range", x, i, j)
     return value
     
+# note that a NetCDFInterpolator is *not* object an Interpolator object
+# the latter is considered immutable, whereas the NetCDFInterpolator may
+# change with set_ranges() and set_field() and will create a new Interpolator sub-object
+# each time
 class NetCDFInterpolator(object):
   """Implements an object to interpolate values from a NetCDF-stored data set.
 
