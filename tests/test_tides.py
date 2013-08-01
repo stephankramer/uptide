@@ -11,24 +11,11 @@ class TestTidal(unittest.TestCase):
     # constituents all tests below, except test_all_constituents_tested,
     # should still pass
     self.tide = uptide.Tides(
-        ['Q1',
-          'P1',
-          'K2',
-          'Mm',
-          'S2',
-          'MS4',
-          'MN4',
-          'M4',
-          'K1',
-          'Mf',
-          'L2',
-          'M2',
-          'N2',
-          'Z0',
-          'Sa',
-          'O1',
-          'S1',
-          'Ssa'])
+        ['Q1', 'P1', 'K2', 'Mm', 'S2',
+          'MS4', 'MN4', 'M4', 'K1', 'Mf',
+          'L2', 'M2', 'N2', 'Z0', 'Sa',
+          'O1', 'S1', 'Ssa', '2N2', 'MU2',
+          'NU2', 'T2'])
     self.tide.set_initial_time(datetime.datetime(2003,1,17,19,30))
 
   def test_compute_nodal_corrections(self):
@@ -36,16 +23,18 @@ class TestTidal(unittest.TestCase):
     # test phase corrections
     for x,y in zip(self.tide.u,
         [ 0.17238093,  0.        , -0.28251319,  0.        ,  0.        ,
-          -0.03351851, -0.06703702, -0.06703702, -0.14205465, -0.37828036,
+         -0.03351851, -0.06703702, -0.06703702, -0.14205465, -0.37828036,
           0.        , -0.03351851, -0.03351851,  0.        ,  0.        ,
-          0.17238093,  0.        ,  0.0]):
+          0.17238093,  0.        ,  0.0       , -0.03351851, -0.03351851, 
+          -0.03351851, -0.03351851]):
       self.assertAlmostEqual(x,y)
     # test amplitude corrections
     for x,y in zip(self.tide.f,
-        [ 1.08465367,  1.        ,  1.13970561,  0.94740654,  1.        ,
-          0.98503109,  0.97028625,  0.97028625,  1.05252498,  1.21048994,
-          1.        ,  0.98503109,  0.98503109,  1.        ,  1.        ,
-          1.08465367,  1.        ,  1.0]):
+        [ 1.08465367,  1.        ,  1.13970561,  0.94740654 ,  1.        ,
+          0.98503109,  0.97028625,  0.97028625,  1.05252498 ,  1.21048994,
+          1.        ,  0.98503109,  0.98503109,  1.         ,  1.        ,
+          1.08465367,  1.        ,  1.        ,  0.98503109 , 0.98503109 ,
+          0.98503109 , 0.98503109]):
       self.assertAlmostEqual(x,y)
 
   def test_ap_vs_complex(self):

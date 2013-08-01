@@ -73,7 +73,11 @@ lunar_doodson_numbers = {
   'K2': [ 2.0, 2.0, 0.0, 0.0],
   'L2': [ 2.0, 1.0, 0.0, -1.0],
   # Higher-order (nonlinear) components, these are simply combinations of the above:
-  'M4': [ 4.0, 0.0, 0.0, 0.0],
+  '2N2': [ 2.0, -2.0, 0.0, 2.0],
+  'MU2': [ 2.0, -2.0, 2.0, 0.0],
+  'NU2': [ 2.0, -1.0, 2.0, -1.0],
+  'T2':  [ 2.0, 2.0, -3.0, 0.0], # what about its p' component?
+  'M4':  [ 4.0, 0.0, 0.0, 0.0],
   'MS4': [ 4.0, 2.0, -2.0, 0.0],
   'MN4': [ 4.0, -1.0, 0.0, 1.0],
   # long period species:
@@ -104,6 +108,7 @@ tidal_phase_origin={
     'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':90.,
     'M2':0., 'S2':0., 'N2':0., 'K2':0., 'L2':180., 
     'Mf':0., 'Mm':0., 'Ssa':0., 'Sa':0.,
+    '2N2':0., 'MU2':0., 'NU2':0., 'T2':0.,
     'M4':0., 'MS4':0., 'MN4':0.}
 
 # compute the astronomical arguments H, s, h, p'
@@ -149,6 +154,7 @@ nodal_correction_u1 = {
   'N2': -0.03665191,
   'K2': -0.30892328}
 nodal_correction_f2={}
+# nodal corrections for M4, MN4, MS4
 for comp in ('M2','N2','S2'):
   if comp[0]=='M':
     name='M4'
@@ -159,6 +165,12 @@ for comp in ('M2','N2','S2'):
             nodal_correction_f1.get('M2',0.0) * nodal_correction_f0.get(comp, 1.0))
   nodal_correction_f2[name] = nodal_correction_f1.get('M2',0.0) * nodal_correction_f1.get(comp, 0.0)
   nodal_correction_u1[name] = nodal_correction_u1.get('M2',0.0) + nodal_correction_u1.get(comp, 0.0)
+# nodal corrections that are the same as M2 and N2 (see Pugh table 4.3):
+for comp in ('2N2', 'MU2', 'NU2', 'T2'):
+  nodal_correction_f0[comp] = nodal_correction_f0.get('M2', 1.0)
+  nodal_correction_f1[comp] = nodal_correction_f1.get('M2', 0.0)
+  nodal_correction_f2[comp] = nodal_correction_f2.get('M2', 0.0)
+  nodal_correction_u1[comp] = nodal_correction_u1.get('M2', 0.0)
 
 def nodal_corrections(constituents, N, pp):
   # compute the 18.6 year variations (pp is currently not used)
