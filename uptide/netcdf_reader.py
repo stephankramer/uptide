@@ -20,12 +20,20 @@ class Interpolator(object):
     self.delta = delta
     self.val = val
     self.mask = mask
+    # cache points that need to be extrapolated
     self.extrapolation_points = {}
 
   def set_mask(self, mask):
     self.mask = mask
+    # changing the mask invalidates the extrapolation cache
+    self.extrapolation_points ={}
 
   def find_extrapolation_points(self, x, i, j):
+    if x in self.extrapolation_points:
+      return extrapolation_points[x]
+
+    # This should only happen infrequently, so warn user (till someone tells us this is too annoying)
+    print "Need to extrapolate point coordinates ", x
     ijs = [(i-1, j+1), (i-1, j), (i, j-1), (i+1, j-1), (i+2, j), (i+2, j+1), (i+1, j+2), (i, j+2)] # Neighbouring points
     ijs += [(i-1, j-1), (i+2, j-1), (i+2, j+2), (i-1, j+2)] # Diagonal points
 
@@ -40,6 +48,9 @@ class Interpolator(object):
 
     if len(extrap_points) == 0:
       raise CoordinateError("Inside landmask - tried extrapolating but failed", x, i, j)
+
+    self.extrapolation_points[x] = extrap_points
+
     return extrap_points
 
 
@@ -65,13 +76,7 @@ class Interpolator(object):
         if sumw>0.0:
           value = value/sumw
         elif allow_extrapolation:
-          if x in self.extrapolation_points:
-            extrap_points = extrapolation_points[x]
-          else:
-            # This should only happen infrequently, so warn user (till someone tells us this is too annoying)
-            print "Need to extrapolate point coordinates ", x
-            extrap_points = self.find_extrapolation_points(x, i, j)
-            self.extrapolation_points[x] = extrap_points
+          extrap_points = self.find_extrapolation_points(x, i, j)
           value = sum([self.val[..., a, b] for a, b in extrap_points])/len(extrap_points)
         else:
           raise CoordinateError("Probing point inside land mask", x, i, j)
