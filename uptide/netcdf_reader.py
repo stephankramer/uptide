@@ -20,6 +20,7 @@ class Interpolator(object):
     self.delta = delta
     self.val = val
     self.mask = mask
+    self.extrapolation_points = {}
 
   def set_mask(self, mask):
     self.mask = mask
@@ -64,9 +65,13 @@ class Interpolator(object):
         if sumw>0.0:
           value = value/sumw
         elif allow_extrapolation:
-          # This should only happen infrequently, so warn user (till someone tells us this is too annoying)
-          print "Need to extrapolate point coordinates ", x
-          extrap_points = self.find_extrapolation_points(x, i, j)
+          if x in self.extrapolation_points:
+            extrap_points = extrapolation_points[x]
+          else:
+            # This should only happen infrequently, so warn user (till someone tells us this is too annoying)
+            print "Need to extrapolate point coordinates ", x
+            extrap_points = self.find_extrapolation_points(x, i, j)
+            self.extrapolation_points[x] = extrap_points
           value = sum([self.val[..., a, b] for a, b in extrap_points])/len(extrap_points)
         else:
           raise CoordinateError("Probing point inside land mask", x, i, j)
