@@ -30,7 +30,7 @@ class Interpolator(object):
 
   def find_extrapolation_points(self, x, i, j):
     if x in self.extrapolation_points:
-      return extrapolation_points[x]
+      return self.extrapolation_points[x]
 
     # This should only happen infrequently, so warn user (till someone tells us this is too annoying)
     print "Need to extrapolate point coordinates ", x
