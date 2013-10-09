@@ -42,3 +42,6 @@ class TestTidal(unittest.TestCase):
     # exactly twice a day:
     self.assertAlmostEqual(ut.omega['S2'], 4*math.pi/86400.)
     self.assertAlmostEqual(ut.omega['Ssa'], 3.9821275945895842e-07)
+
+if __name__ == '__main__':
+      unittest.main()

@@ -1,4 +1,20 @@
-from scipy.io.netcdf import NetCDFFile
+# horrible kludge to import python netcdf class - there's three different implementations to choose from!
+# luckily they adhere to the same API
+try:
+  # this seems to be the most mature and also handles netcdf4 files
+  from netCDF4 import Dataset as NetCDFFile
+except ImportError:
+  try:
+    # this one is older but is quite often installed
+    from Scientific.IO.NetCDF import NetCDFFile
+  except ImportError:
+    # finally, try the one in scipy that I hear conflicting things about
+    try:
+      # this only works in python 2.7
+      from scipy.io.netcdf import NetCDFFile
+    except ImportError:
+      # in python 2.6 it's called something else
+      from scipy.io.netcdf import netcdf_file as NetCDFFile
 import math
 import numpy
 
@@ -57,8 +73,8 @@ class Interpolator(object):
   def get_val(self, x, allow_extrapolation=False):
     xhat = (x[0]-self.origin[0])/self.delta[0]
     yhat = (x[1]-self.origin[1])/self.delta[1]
-    i = math.floor(xhat)
-    j = math.floor(yhat)
+    i = int(math.floor(xhat))
+    j = int(math.floor(yhat))
     # this is not catched as an IndexError below, because of wrapping of negative indices
     if i<0 or j<0:
       raise CoordinateError("Coordinate out of range", x, i, j)
@@ -66,24 +82,46 @@ class Interpolator(object):
     beta = yhat % 1.0
     try:
       if self.mask is not None:
+
+        # case with a land mask
+
         w00 = (1.0-alpha)*(1.0-beta)*self.mask[i,j]
         w10 = alpha*(1.0-beta)*self.mask[i+1,j]
         w01 = (1.0-alpha)*beta*self.mask[i,j+1]
         w11 = alpha*beta*self.mask[i+1,j+1]
-        value = w00*self.val[...,i,j] + w10*self.val[...,i+1,j] + w01*self.val[...,i,j+1] + w11*self.val[...,i+1,j+1]
+        if len(self.val.shape)==2:
+          value = w00*self.val[i,j] + w10*self.val[i+1,j] + w01*self.val[i,j+1] + w11*self.val[i+1,j+1]
+        elif len(self.val.shape)==3:
+          value = w00*self.val[:,i,j] + w10*self.val[:,i+1,j] + w01*self.val[:,i,j+1] + w11*self.val[:,i+1,j+1]
+        else:
+          raise NetCDFInterpolatorError("Field to interpolate, should have 2 or 3 dimensions")
         sumw = w00+w10+w01+w11
 
         if sumw>0.0:
           value = value/sumw
         elif allow_extrapolation:
           extrap_points = self.find_extrapolation_points(x, i, j)
-          value = sum([self.val[..., a, b] for a, b in extrap_points])/len(extrap_points)
+          if len(self.val.shape)==2:
+            value = sum([self.val[a, b] for a, b in extrap_points])/len(extrap_points)
+          elif len(self.val.shape)==3:
+            value = sum([self.val[:, a, b] for a, b in extrap_points])/len(extrap_points)
+          else:
+            raise NetCDFInterpolatorError("Field to interpolate, should have 2 or 3 dimensions")
         else:
           raise CoordinateError("Probing point inside land mask", x, i, j)
 
       else:
-        value = ((1.0-beta)*((1.0-alpha)*self.val[...,i,j]+alpha*self.val[...,i+1,j])+
-                  beta*((1.0-alpha)*self.val[...,i,j+1]+alpha*self.val[...,i+1,j+1]))
+
+        # case without a land mask
+
+        if len(self.val.shape)==2:
+          value = ((1.0-beta)*((1.0-alpha)*self.val[i,j]+alpha*self.val[i+1,j])+
+                  beta*((1.0-alpha)*self.val[i,j+1]+alpha*self.val[i+1,j+1]))
+        elif len(self.val.shape)==3:
+          value = ((1.0-beta)*((1.0-alpha)*self.val[:,i,j]+alpha*self.val[:,i+1,j])+
+                  beta*((1.0-alpha)*self.val[:,i,j+1]+alpha*self.val[:,i+1,j+1]))
+        else:
+          raise NetCDFInterpolatorError("Field to interpolate, should have 2 or 3 dimensions")
     except IndexError:
       raise CoordinateError("Coordinate out of range", x, i, j)
     return value
@@ -159,7 +197,7 @@ class NetCDFInterpolator(object):
 
   """
   def __init__(self, filename, *args, **kwargs):
-    self.nc = NetCDFFile(filename)
+    self.nc = NetCDFFile(filename, 'r')
 
     if len(args)==1:
 
@@ -237,7 +275,10 @@ class NetCDFInterpolator(object):
       self.mask = self.mask[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
     if self.interpolator is not None:
       ir = self.iranges
-      self.val = self.val[...,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      if len(self.val.shape)==2:
+        self.val = self.val[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      elif len(self.val.shape)==3:
+        self.val = self.val[:,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
       self.interpolator = Interpolator(self.origin, self.delta, self.val, self.mask)
 
   def set_mask(self, field_name):
@@ -253,15 +294,21 @@ class NetCDFInterpolator(object):
   def set_mask_from_fill_value(self, field_name, fill_value):
     """Sets a land mask, where all points for which the supplied field equals the supplied fill value. The supplied field_name
     does not have to be the same as the field that is interpolated from, set with set_field()."""
-    if self.iranges is None:
-      val = self.nc.variables[field_name]
-    else:
+    val = self.nc.variables[field_name]
+    if self.iranges is not None:
       ir = self.iranges
-      val = self.nc.variables[field_name][...,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
-    if len(val.shape)==3:
-      val = val[0,...]
+      if len(val.shape)==2:
+        val = val[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      elif len(val.shape)==3:
+        # multiple values per gridpoint, just take the first one
+        val = val[0,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      else:
+        raise NetCDFInterpolatorError("Field to extract mask from, should have 2 or 3 dimensions")
     elif len(val.shape)==2:
       val = val[:]
+    elif len(val.shape)==3:
+      # multiple values per gridpoint, just take the first one
+      val = val[0,:,:]
     else:
       raise NetCDFInterpolatorError("Field to extract mask from, should have 2 or 3 dimensions")
     self.mask = numpy.where(val==fill_value,0.,1.)
@@ -271,11 +318,15 @@ class NetCDFInterpolator(object):
   def set_field(self, field_name):
     """Set the name of the field to be interpolated."""
     self.field_name = field_name
-    if self.iranges is None:
-      self.val = self.nc.variables[field_name]
-    else:
+    self.val = self.nc.variables[field_name]
+    if self.iranges is not None:
       ir = self.iranges
-      self.val = self.nc.variables[field_name][...,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      if len(self.val.shape)==2:
+        self.val = self.val[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      elif len(self.val.shape)==3:
+        self.val = self.val[:,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      else:
+        raise NetCDFInterpolatorError("Field to interpolate, should have 2 or 3 dimensions")
     self.interpolator = Interpolator(self.origin, self.delta, self.val, self.mask)
 
 

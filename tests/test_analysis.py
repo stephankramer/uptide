@@ -28,3 +28,5 @@ class TestAnalysis(unittest.TestCase):
       show()
     self.assertAlmostEqual(numpy.linalg.norm(x-y), 0.0)
 
+if __name__ == '__main__':
+      unittest.main()

@@ -21,3 +21,6 @@ class TestEllipse(unittest.TestCase):
     a,b,theta = ue.tidal_ellipse_parameters(7.0, -math.pi*2/3., 1.0, -math.pi/6.)
     for x,y in zip((a,b,math.sin(theta)),(7.0,1.0,0.0)):
       self.assertAlmostEqual(x,y)
+
+if __name__ == '__main__':
+      unittest.main()

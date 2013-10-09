@@ -1,9 +1,8 @@
 import unittest
 import uptide
-from uptide.netcdf_reader import NetCDFInterpolator, CoordinateError
+from uptide.netcdf_reader import NetCDFInterpolator, CoordinateError, NetCDFFile
 import itertools
 import os
-from scipy.io.netcdf import NetCDFFile
 from numpy import arange, array, ones
 
 # function used to fill the netcdf field, has to be linear
@@ -115,3 +114,6 @@ class TestNetCDFInterpolator(unittest.TestCase):
         if not 'field' in perm:
           continue
         self._test_permutation(perm)
+
+if __name__ == '__main__':
+      unittest.main()

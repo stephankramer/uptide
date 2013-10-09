@@ -51,3 +51,5 @@ class TestTidal(unittest.TestCase):
   def test_all_constituents_are_tested(self):
     self.assertEqual(set(uptide.tidal.omega.keys()), set(self.tide.constituents))
 
+if __name__ == '__main__':
+      unittest.main()
