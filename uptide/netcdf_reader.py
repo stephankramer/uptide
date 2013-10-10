@@ -220,14 +220,18 @@ class NetCDFInterpolator(object):
       self.delta = []
 
       for dimension,field_name in zip(dimensions, coordinate_fields):
-        self.shape.append(self.nc.dimensions[dimension])
+        N = self.nc.dimensions[dimension]
+        self.shape.append(N)
+        if not isinstance(N, int):
+          # let's guess it's a netCDF4.Dimension, so we should ask for its len (yuck)
+          N = len(N)
         val = self.nc.variables[field_name]
         if len(val.shape)==1:
           self.origin.append(val[0])
-          self.delta.append((val[-1]-self.origin[-1])/(self.shape[-1]-1))
+          self.delta.append((val[-1]-self.origin[-1])/(N-1))
         elif len(val.shape)==2:
           self.origin.append(val[0,0])
-          self.delta.append((val[-1,-1]-self.origin[-1])/(self.shape[-1]-1))
+          self.delta.append((val[-1,-1]-self.origin[-1])/(N-1))
         else:
           raise NetCDFInterpolatorError("Unrecognized shape of coordinate field")
 
