@@ -1,6 +1,12 @@
 About uptide
 ==============
-uptide is a python package for tidal calculations.
+uptide is a python package for tidal calculations. It computes the tidal
+free surface height or velocities from the amplitudes and phases of the tidal
+constituents. These amplitudes and phases can be read from global tidal
+solutions such as OSU/OTIS (http://volkov.oce.orst.edu/tides/) or FES2012
+(http://www.aviso.oceanobs.com/en/data/products/auxiliary-products/global-tide-fes.html).
+They can be read directly from the netCDF files provided by these sources. Some
+limited functionality for tidal harmonic analysis is also available,
 
 Prerequisites
 ---------------
