@@ -20,7 +20,7 @@ and is required for FES2012 that comes in netcdf4 format. To install:
   sudo CC=mpicc pip install netcdf4
 
 For Ubuntu Precise, see this
-(bug)[http://code.google.com/p/netcdf4-python/issues/detail?id=194]. So there,
+[bug](http://code.google.com/p/netcdf4-python/issues/detail?id=194). So there,
 either use Scientific (sudo apt-get install python-scientific), or install a 
 newer version of netcdf4 (>=4.1.2).
 
