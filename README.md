@@ -11,7 +11,13 @@ Prerequisites
 ---------------
 * python 2.6 or 2.7 (not tested for python 3)
 * numpy
-* optional: scipy with netCDF support (scipy.io.netcdf)
+* to read from netCDF sources: python netCDF support. This can be either:
+[netCDF4](http://code.google.com/p/netcdf4-python/), or
+[Scientific.IO.NetCDF](http://dirac.cnrs-orleans.fr/plone/software/scientificpython/),
+or [scipy.io.netcdf](http://www.scipy.org). netCDF4 is the recommended package
+and is required for FES2012 that comes in netcdf4 format. To install:
+
+  sudo CC=mpicc pip install netcdf4
 
 Functionality
 ---------------
