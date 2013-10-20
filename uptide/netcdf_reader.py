@@ -162,7 +162,7 @@ class NetCDFInterpolator(object):
   origin and step size). The order of the dimensions and coordinate fields specified in the call does not have to match that
   of the netCDF file, i.e. we could have opened the same file with:
 
-    nci = NetCDFInterpolator('foo.nc', ('ny', 'nx'), ('latitude', longitude'))
+    nci_transpose = NetCDFInterpolator('foo.nc', ('ny', 'nx'), ('latitude', longitude'))
 
   The only difference would be the order in which the coordinates to get_val and set_ranges are specified.
   To indicate the field to be interpolated:
@@ -173,7 +173,7 @@ class NetCDFInterpolator(object):
 
     nci.get_val((-3.0, 58.5))
 
-  The order of the coordinates should again correspond to the way the field is stored. If many interpolations are done 
+  If many interpolations are done 
   within a sub-domain of the area covered by the NetCDF, it may be much more efficient to indicate the range of coordinates
   with:
 
