@@ -330,13 +330,13 @@ class NetCDFInterpolator(object):
       if mask_dim_order==self.dim_order:
         self.mask = mask
       else:
-        if hasattr(self.mask, 'T'):
+        if hasattr(mask, 'T'):
           # if we've made a copy into a numpy array already, we can do a cheap in-place transpose
-          self.mask = self.mask.T
+          self.mask = mask.T
         else:
           # requires a copy (and complete read from disk)
-          self.mask = transpose(self.mask)
-      self.interpolator.set_mask(mask)
+          self.mask = numpy.transpose(mask)
+      self.interpolator.set_mask(self.mask)
 
   def set_mask_from_fill_value(self, field_name, fill_value):
     """Sets a land mask, where all points for which the supplied field equals the supplied fill value. The supplied field_name
@@ -399,9 +399,8 @@ class NetCDFInterpolator(object):
           self.mask = self.mask.T
         else:
           # requires a copy (and complete read from disk)
-          self.mask = transpose(self.mask)
-    else:
-      self.dim_order = dim_order
+          self.mask = numpy.transpose(self.mask)
+    self.dim_order = dim_order
 
     origin = [self.origin[d] for d in self.dim_order]
     delta = [self.delta[d] for d in self.dim_order]
