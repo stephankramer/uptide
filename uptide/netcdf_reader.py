@@ -184,7 +184,8 @@ class NetCDFInterpolator(object):
      nci.set_mask_from_fill_value('z', -9999.)
 
   It is allowed to switch between different fields using multiple calls of set_field(). The mask and ranges will be retained. It is
-  however not allowed to call set_mask() or set_ranges() more than once. Finally, the case where the coordinate fields (and optionally
+  however not allowed to call set_mask() or set_ranges() more than once. Finally, 
+  for the case where the coordinate fields (and optionally
   the mask field) is stored in a different file than the one containing the field values to be interpolated, the following syntax
   is provided:
 
@@ -205,17 +206,21 @@ class NetCDFInterpolator(object):
       # we copy the grid information of another netcdf interpolator
 
       nci = args[0]
+      self.dimensions = nci.dimensions
       self.shape = nci.shape
       self.origin = nci.origin
       self.delta = nci.delta
       self.iranges = nci.iranges
       self.mask = nci.mask
+      if nci.mask is not None:
+        self.dim_order = nci.dim_order
 
     elif len(args)==2:
 
       dimensions = args[0]
       coordinate_fields = args[1]
 
+      self.dimensions = dimensions
       self.shape = []
       self.origin = []
       self.delta = []
@@ -276,35 +281,77 @@ class NetCDFInterpolator(object):
     self.shape = shape_new
 
     if self.mask is not None:
-      ir = self.iranges
+      ir = [self.iranges[d] for d in self.dim_order]
       self.mask = self.mask[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+
     if self.interpolator is not None:
-      ir = self.iranges
+      ir = [self.iranges[d] for d in self.dim_order]
       if len(self.val.shape)==2:
         self.val = self.val[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
       elif len(self.val.shape)==3:
         self.val = self.val[:,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
-      self.interpolator = Interpolator(self.origin, self.delta, self.val, self.mask)
+      origin = [self.origin[d] for d in self.dim_order]
+      delta = [self.delta[d] for d in self.dim_order]
+      self.interpolator = Interpolator(origin, delta, self.val, self.mask)
 
   def set_mask(self, field_name):
     """Sets a land mask from a mask field. This field should have a value of 0.0 for land points and 1.0 for the sea"""
-    self.mask = self.nc.variables[field_name]
+    mask = self.nc.variables[field_name]
     if hasattr(self.mask, 'set_auto_maskandscale'):
       # netCDF4 automagically turns a variable into a masked array if it has a _FillValue attribute
       # might be handy, but is not compatible with other netcdf implementations
-      self.mask.set_auto_maskandscale(False)
+      mask.set_auto_maskandscale(False)
+
+    # work out the dimension, in particular its order
+    if list(mask.dimensions) == list(self.dimensions):
+      dim_order = [0,1]
+    elif list(mask.dimensions) == list(self.dimensions)[::-1]:
+      dim_order = [1,0]
+    else:
+      raise NetCDFInterpolatorError("Dimensions of mask field not the same as specified in __init__")
+
     if self.iranges is not None:
-      ir = self.iranges
-      self.mask = self.mask[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
-    if self.interpolator is not None:
-      self.interpolator.set_mask(self.mask)
+      ir = [self.iranges[d] for d in dim_order]
+      mask = mask[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+
+    self._set_mask_and_dim_order(mask, dim_order)
+
+  def _set_mask_and_dim_order(self, mask, mask_dim_order):
+    """If no interpolator is defined yet, sets dim_order to mask_dim_order otherwise
+    ensures that the dim_order of the interpolator is the same as that of mask_dim_order, if
+    necessary by transposing the mask."""
+
+    if self.interpolator is None:
+      self.mask = mask
+      # dim_order of mask is always the same as that of the field (mask will be transposed if the next field is in different order)
+      self.dim_order = mask_dim_order
+    else:
+      # dim_order is already set by interpolator, check that it agrees with mask_dim_order
+      if mask_dim_order==self.dim_order:
+        self.mask = mask
+      else:
+        if hasattr(self.mask, 'T'):
+          # if we've made a copy into a numpy array already, we can do a cheap in-place transpose
+          self.mask = self.mask.T
+        else:
+          # requires a copy (and complete read from disk)
+          self.mask = transpose(self.mask)
+      self.interpolator.set_mask(mask)
 
   def set_mask_from_fill_value(self, field_name, fill_value):
     """Sets a land mask, where all points for which the supplied field equals the supplied fill value. The supplied field_name
     does not have to be the same as the field that is interpolated from, set with set_field()."""
     val = self.nc.variables[field_name]
+    # work out the dimension, in particular its order
+    if list(val.dimensions)[-2:] == list(self.dimensions):
+      dim_order = [0,1]
+    elif list(val.dimensions)[-2:] == list(self.dimensions)[::-1]:
+      dim_order = [1,0]
+    else:
+      raise NetCDFInterpolatorError("Dimensions of mask field not the same as specified in __init__")
+
     if self.iranges is not None:
-      ir = self.iranges
+      ir = [self.iranges[d] for d in dim_order]
       if len(val.shape)==2:
         val = val[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
       elif len(val.shape)==3:
@@ -319,27 +366,53 @@ class NetCDFInterpolator(object):
       val = val[0,:,:]
     else:
       raise NetCDFInterpolatorError("Field to extract mask from, should have 2 or 3 dimensions")
-    self.mask = numpy.where(val==fill_value,0.,1.)
-    if self.interpolator is not None:
-      self.interpolator.set_mask(self.mask)
+
+    mask = numpy.where(val==fill_value,0.,1.)
+    self._set_mask_and_dim_order(mask, dim_order)
 
   def set_field(self, field_name):
     """Set the name of the field to be interpolated."""
     self.field_name = field_name
     self.val = self.nc.variables[field_name]
+
+    # work out the dimension, in particular its order
+    if list(self.val.dimensions)[-2:] == list(self.dimensions):
+      dim_order = [0,1]
+    elif list(self.val.dimensions)[-2:] == list(self.dimensions)[::-1]:
+      dim_order = [1,0]
+    else:
+      raise NetCDFInterpolatorError("Dimensions of field not the same as specified in __init__")
+
     if self.iranges is not None:
-      ir = self.iranges
+      ir = [self.iranges[d] for d in dim_order]
       if len(self.val.shape)==2:
         self.val = self.val[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
       elif len(self.val.shape)==3:
         self.val = self.val[:,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
       else:
         raise NetCDFInterpolatorError("Field to interpolate, should have 2 or 3 dimensions")
-    self.interpolator = Interpolator(self.origin, self.delta, self.val, self.mask)
 
+    if self.mask is not None:
+      if not self.dim_order==dim_order:
+        if hasattr(self.mask, 'T'):
+          # if we've made a copy into a numpy array already, we can do a cheap in-place transpose
+          self.mask = self.mask.T
+        else:
+          # requires a copy (and complete read from disk)
+          self.mask = transpose(self.mask)
+    else:
+      self.dim_order = dim_order
+
+    origin = [self.origin[d] for d in self.dim_order]
+    delta = [self.delta[d] for d in self.dim_order]
+    self.interpolator = Interpolator(origin, delta, self.val, self.mask)
 
   def get_val(self, x, allow_extrapolation=False):
     """Interpolate the field chosen with set_field(). The order of the coordinates should correspond with the storage order in the file."""
     if not hasattr(self, "interpolator"):
       raise NetCDFInterpolatorError("Should call set_field() before calling get_val()!")
-    return self.interpolator.get_val(x, allow_extrapolation)
+    if self.dim_order[0]==0:
+      return self.interpolator.get_val(x, allow_extrapolation)
+    else:
+      # swap dimensions
+      return self.interpolator.get_val((x[1],x[0]), allow_extrapolation)
