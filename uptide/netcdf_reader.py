@@ -141,9 +141,10 @@ class NetCDFInterpolator(object):
     nci = NetCDFInterpolator('foo.nc', ('nx', 'ny'), ('longitude', latitude'))
 
   Here 'nx' and 'ny' refer to the names of the dimensions of the logical 2D grid and 'longitude' and 'latitude' to the 
-  names of the coordinate fields. The order of the two tuple-arguments should agree (e.g. here 'longitude' increases in the 'nx'
-  and 'latitude' in the 'ny' direction) and correspond to the order of the field that is to be interpolated. This order 
-  can be obtained by using the ncdump program of the standard NetCDF utils:
+  names of the coordinate fields. The order of these should match (e.g. here, the 'nx' dimension should be the 
+  dimension in which 'longitude' increases, and 'ny' the dimension in which 'latitude' increases) and determines the order
+  of coordinates in all other arguments (ranges and get_val).
+  The names  can of dimension and coordinate fields can be obtained by using the ncdump program of the standard NetCDF utils:
     
     $ ncdump -h foo.nc
     netcdf foo {
@@ -158,7 +159,13 @@ class NetCDFInterpolator(object):
     }
 
   The coordinate fields may be stored as 1d or 2d fields (although only two values will actually be read to determine the 
-  origin and step size). To indicate the field to be interpolated:
+  origin and step size). The order of the dimensions and coordinate fields specified in the call does not have to match that
+  of the netCDF file, i.e. we could have opened the same file with:
+
+    nci = NetCDFInterpolator('foo.nc', ('ny', 'nx'), ('latitude', longitude'))
+
+  The only difference would be the order in which the coordinates to get_val and set_ranges are specified.
+  To indicate the field to be interpolated:
 
     nci.set_field('z')
 
