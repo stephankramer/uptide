@@ -1,6 +1,7 @@
 import numpy
 import netcdf_reader
 import itertools
+import os.path
 
 _deg2rad = numpy.pi/180.
 
@@ -113,7 +114,10 @@ class TidalNetCDFInterpolator(object):
         nci = netcdf_reader.NetCDFInterpolator(filenm, self.nci)
         nci_filenm = filenm
       nci.set_field(fieldnm)
-      val.append(nci.val[:])
+      if nci.dim_order[0]==0:
+        val.append(nci.val[:])
+      else:
+        val.append(nci.val[:].T)
     return val
 
   def load_amplitudes_and_phases_block(self,
@@ -152,7 +156,10 @@ class TidalNetCDFInterpolator(object):
 
     val=[]
     for component in field_components:
-      val.append(nci.val[component,:,:])
+      if nci.dim_order[0]==0:
+        val.append(nci.val[component,:,:])
+      else:
+        val.append(nci.val[component,:,:].T)
     return val
 
   def set_time(self, t):
@@ -234,3 +241,51 @@ def FESTidalInterpolator(tide, fes_file_name, ranges=None):
   tnci.load_amplitudes_and_phases_block(fes_file_name, 'Ha', components,
       fes_file_name, 'Hg', components)
   return tnci
+
+def FES2012TidalInterpolator(tide, fes_ini_file_name, fes_data_path=None, ranges=None):
+  if fes_data_path is None:
+    fes_data_path, tail = os.path.split(fes_ini_file_name)
+  # remove double and trailing /s, change '' to '.':
+  fes_data_path = os.path.normpath(fes_data_path)
+
+  ini = read_fes_ini_file(fes_ini_file_name, fes_data_path)
+  first_entry = next(ini['TIDE'].itervalues())
+  grid_file_name = first_entry['FILE']
+  lon_name = first_entry['LONGITUDE']
+  lat_name = first_entry['LATITUDE']
+  tnci = TidalNetCDFInterpolator(tide, grid_file_name, (lon_name, lat_name),
+      (lon_name, lat_name), ranges=ranges)
+
+  file_names = []
+  amplitude_names = []
+  phase_names = []
+  for constituent in tide.constituents:
+    file_names.append(ini['TIDE'][constituent]['FILE'])
+    amplitude_names.append(ini['TIDE'][constituent]['AMPLITUDE'])
+    phase_names.append(ini['TIDE'][constituent]['PHASE'])
+  tnci.load_amplitudes_and_phases(file_names, amplitude_names, file_names, phase_names)
+  return tnci
+
+def read_fes_ini_file(file_name, fes_data_path):
+  ini = {}
+  for line in file(file_name, 'r'):
+    line = line.lstrip()
+    if line=='' or line.startswith(';'):
+      continue
+
+    key, value = line.split('=')
+    type, name, field = key.strip().split('_', 2)
+
+    value = value.strip()
+    if field=='FILE':
+      value = value.replace('${FES_DATA}', fes_data_path)
+      value = os.path.normpath(value)
+      
+    if not type in ini:
+      ini[type] = {name: {field: value}}
+    elif not name in ini[type]:
+      ini[type][name] = {field: value}
+    else:
+      ini[type][name][field] = value
+
+  return ini
