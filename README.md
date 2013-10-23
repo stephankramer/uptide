@@ -1,12 +1,28 @@
 About uptide
 ==============
-uptide is a python package for tidal calculations.
+uptide is a python package for tidal calculations. It computes the tidal
+free surface height or velocities from the amplitudes and phases of the tidal
+constituents. These amplitudes and phases can be read from global tidal
+solutions such as [OSU/OTIS](http://volkov.oce.orst.edu/tides/) or [FES2012](http://www.aviso.oceanobs.com/en/data/products/auxiliary-products/global-tide-fes.html).
+They can be read directly from the netCDF files provided by these sources. Some
+limited functionality for tidal harmonic analysis is also available,
 
 Prerequisites
 ---------------
 * python 2.6 or 2.7 (not tested for python 3)
 * numpy
-* optional: scipy with netCDF support (scipy.io.netcdf)
+* to read from netCDF sources: python netCDF support. This can be either:
+[netCDF4](http://code.google.com/p/netcdf4-python/), or
+[Scientific.IO.NetCDF](http://dirac.cnrs-orleans.fr/plone/software/scientificpython/),
+or [scipy.io.netcdf](http://www.scipy.org). netCDF4 is the recommended package
+and is required for FES2012 that comes in netcdf4 format. To install:
+
+  sudo CC=mpicc pip install netcdf4
+
+For Ubuntu Precise, see this
+[bug](http://code.google.com/p/netcdf4-python/issues/detail?id=194). So there,
+either use Scientific (sudo apt-get install python-scientific), or install a 
+newer version of netcdf4 (>=4.1.2).
 
 Functionality
 ---------------
