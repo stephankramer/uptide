@@ -304,7 +304,7 @@ class NetCDFInterpolator(object):
   def set_mask(self, field_name):
     """Sets a land mask from a mask field. This field should have a value of 0.0 for land points and 1.0 for the sea"""
     mask = self.nc.variables[field_name]
-    if hasattr(self.mask, 'set_auto_maskandscale'):
+    if hasattr(mask, 'set_auto_maskandscale'):
       # netCDF4 automagically turns a variable into a masked array if it has a _FillValue attribute
       # might be handy, but is not compatible with other netcdf implementations
       mask.set_auto_maskandscale(False)
