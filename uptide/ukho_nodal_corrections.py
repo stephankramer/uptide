@@ -2,7 +2,10 @@
 # "Tidal Harmonic Constants Product Specification" (see: http://www.ukho.gov.uk/AdmiraltyPartners/FGHO/Pages/TidalHarmonics.aspx)
 # in particular appendix B
 
-zero_group = ['Zo', 'Sa', 'Sa', 'Ssa', 'pi1', 'P1', 'S1', 'S1', 'S1', 'psi1', 'T2', 'S2', 'R2']
+import math
+from math import sin,cos,pi
+
+zero_group = ['Z0', 'Sa', 'Ssa', 'pi1', 'P1', 'S1', 'S1', 'S1', 'psi1', 'T2', 'S2', 'R2']
 
 # this covers groups y, a, b c, f, g, j, k, m, and o
 group1 = ['M1B', 'M1', 'M1A', 'gamma2', 'alpha2', 'delta2', 'xi2', 'eta2', 'L2']
@@ -21,6 +24,7 @@ group2 += groupo
 groupe = ['ups1', 'OO1']
 
 def nodal_corrections(constituents, p, N, pp):
+  us = []; fs = []
   for constituent in constituents:
     if constituent in zero_group:
       u,f = 0.,1.
@@ -28,17 +32,24 @@ def nodal_corrections(constituents, p, N, pp):
       u,f = group1_nodal_correction(constituent, p, N, pp)
     elif constituent in group2:
       u,f = group2_nodal_correction(constituent, p, N, pp)
-    else
+    else:
       if constituent in ['ups1', 'OO1']: # this is group e
-        constituent='KQ1'
-      if constituent=='L2A': # this is group p
-        constituent='2MN2'
-      print constituent
+        c = 'KQ1'
+      elif constituent=='L2A': # this is group p
+        c = '2MN2'
+      else:
+        c = constituent
+      print c
+
+    us.append(u)
+    fs.append(f)
+
+  return fs, us
 
 def group1_nodal_correction(constituent, p, N, pp):
   if constituent=='M1B':
-    uf = 1j * (2.783*sin(2*p) +  0.558*sin(2*p–N) + 0.184*sin(N)) + \
-           1 + 2.783*cos(2*p) +  0.558*cos(2*p–N) + 0.184*cos(N)
+    uf = 1j * (2.783*sin(2*p) +  0.558*sin(2*p-N) + 0.184*sin(N)) + \
+           1 + 2.783*cos(2*p) +  0.558*cos(2*p-N) + 0.184*cos(N)
   elif constituent=='M1':
     uf = 1j * (sin(p) + 0.2*sin(p-N)) + 2*(cos(p) +  0.2*cos(p-N))
   elif constituent=='M1A':
@@ -50,7 +61,7 @@ def group1_nodal_correction(constituent, p, N, pp):
     uf = 1j * -0.0446*sin(p-pp) + 1. - 0.0446*cos(p-pp)
   elif constituent=='delta2':
     uf = 1j * 0.477*sin(N) + 1. - 0.477*cos(N)
-  elif consituent=='xi2' or constituent=='eta2':
+  elif constituent=='xi2' or constituent=='eta2':
     uf = 1j * -0.439*sin(N) + 1. + 0.439*cos(N)
   elif constituent=='L2':
     uf = 1j * (-0.2505*sin(2*p)-0.1102*sin(2*p-N)-0.0156*sin(2*p-2*N)-0.037*sin(N)) + \
@@ -59,10 +70,10 @@ def group1_nodal_correction(constituent, p, N, pp):
     raise Exception("constituent not in group1") 
   return abs(uf), math.atan2(uf.imag, uf.real)
 
-def group2_nodal_correction(constituents, p, N, pp):
-  if constituent=='Mm' or consituent=='Mfm': # Mfm is group a
+def group2_nodal_correction(constituent, p, N, pp):
+  if constituent=='Mm' or constituent=='Mfm': # Mfm is group a
     u = 0.
-    f = 1 -  0.1311*cos(N)  +  0.0538*cos 2p  +  0.0205*cos (2p - N)   
+    f = 1 -  0.1311*cos(N)  +  0.0538*cos(2*p)  +  0.0205*cos(2*p-N)
   elif constituent=='Mf':
     u=-23.7*sin(N)+2.7*sin(2*N)-0.4*sin(3*N)
     f=1.084+0.415*cos(N)+0.039*cos(2*N)
@@ -93,7 +104,8 @@ def group2_nodal_correction(constituents, p, N, pp):
     f=(1.0007-0.0373*cos(N)+0.0002*cos(2*N))**2.
   else:
     raise Exception("constituent not in group2")
+  return u, f
 
-diurnal_letters=['sigma', 'Q', 'rho', 'O', 'tau', 'K', 'chi', 'pi', 'P', 'psi', 'phi','J', 'ups']
-semidiurnal_letters=['eps', 'mu', 'N', 'nu', 'gamma', 'alpha', 'M', 'delta', 'lambda', 'L', 'T', 'S', 'R', 'xi', 'eta']
-def decompose_constituent(constituent):
+#diurnal_letters=['sigma', 'Q', 'rho', 'O', 'tau', 'K', 'chi', 'pi', 'P', 'psi', 'phi','J', 'ups']
+#semidiurnal_letters=['eps', 'mu', 'N', 'nu', 'gamma', 'alpha', 'M', 'delta', 'lambda', 'L', 'T', 'S', 'R', 'xi', 'eta']
+#def decompose_constituent(constituent):
