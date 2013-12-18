@@ -3,7 +3,6 @@ import tidal
 import datetime
 import numpy
 import math
-import ukho_nodal_corrections
 
 class Tides(object):
 
@@ -49,8 +48,7 @@ class Tides(object):
     since the date+time set with set_initial_time())"""
     time = self.datetime0 + datetime.timedelta(seconds=t)
     H,s,h,p,N,pp = tidal.astronomical_argument(time)
-    #self.f, self.u = tidal.nodal_corrections(self.constituents, N, pp)
-    self.f, self.u = ukho_nodal_corrections.nodal_corrections(self.constituents, p, N, pp)
+    self.f, self.u = tidal.nodal_corrections(self.constituents, N, pp)
 
   def from_amplitude_phase(self, amplitudes,phases,t):
     """Compute the tide from provided amplitudes and phases (same order
