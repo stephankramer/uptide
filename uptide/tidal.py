@@ -81,10 +81,10 @@ lunar_doodson_numbers = {
   'MS4': [ 4.0, 2.0, -2.0, 0.0],
   'MN4': [ 4.0, -1.0, 0.0, 1.0],
   # long period species:
-  'Mf': [ 0.0, 2.0, 0.0, 0.0],
-  'Mm': [ 0.0, 1.0, 0.0, -1.0],
-  'Ssa': [ 0.0, 0.0, 2.0, 0.0],
-  'Sa': [ 0.0, 0.0, 1.0, 0.0]}
+  'MF': [ 0.0, 2.0, 0.0, 0.0],
+  'MM': [ 0.0, 1.0, 0.0, -1.0],
+  'SSA': [ 0.0, 0.0, 2.0, 0.0],
+  'SA': [ 0.0, 0.0, 1.0, 0.0]}
 
 # now we can compute the frequencies of the tidal constituents
 omega={}
@@ -109,7 +109,7 @@ tidal_phase_origin={
     # for S1 and K1 there are multiple different entries - in that case we try to correspond to FES and OTPS
     'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':180.,
     'M2':0., 'S2':0., 'N2':0., 'K2':0., 'L2':180., 
-    'Mf':0., 'Mm':0., 'Ssa':0., 'Sa':0.,
+    'MF':0., 'MM':0., 'SSA':0., 'SA':0.,
     '2N2':0., 'MU2':0., 'NU2':0., 'T2':0.,
     'M4':0., 'MS4':0., 'MN4':0.}
 
@@ -133,14 +133,14 @@ def astronomical_argument(time):
     return H,s,h,p,N,pp
 
 nodal_correction_f0 = {
-  'Mf': 1.043, 
+  'MF': 1.043, 
   'O1': 1.009,
   'Q1': 1.009,
   'K1': 1.006,
   'K2': 1.024}
 nodal_correction_f1 = {
-  'Mm': -0.130,
-  'Mf': +0.414,
+  'MM': -0.130,
+  'MF': +0.414,
   'O1': +0.187,
   'Q1': +0.187,
   'K1': +0.115,
@@ -148,7 +148,7 @@ nodal_correction_f1 = {
   'N2': -0.037,
   'K2': +0.286}
 nodal_correction_u1 = {
-  'Mf': -0.41364303,
+  'MF': -0.41364303,
   'O1':  0.18849556,
   'Q1':  0.18849556,
   'K1': -0.1553343,

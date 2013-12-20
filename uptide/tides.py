@@ -13,7 +13,7 @@ class Tides(object):
     all known constituents are included. The used constituents can be queried
     from the constituents attribute."""
     if constituents is not None:
-      self.constituents = constituents
+      self.constituents = [c.upper() for c in constituents]
     else:
       self.constituents = tidal.omega.keys()
 
