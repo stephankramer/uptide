@@ -3,6 +3,7 @@ import numpy
 import math
 import datetime
 from math import pi
+import collections
 
 day = 86400.
 julian_year = 365.25*day
@@ -83,6 +84,8 @@ lunar_doodson_numbers = {
   # long period species:
   'MF': [ 0.0, 2.0, 0.0, 0.0],
   'MM': [ 0.0, 1.0, 0.0, -1.0],
+  'MTM': [ 0.0, 3.0, 0.0, -1.0], # name according to FES, same as MFM
+  'MFM': [ 0.0, 3.0, 0.0, -1.0], # this is the name according to UKHO
   'SSA': [ 0.0, 0.0, 2.0, 0.0],
   'SA': [ 0.0, 0.0, 1.0, 0.0]}
 
@@ -103,15 +106,13 @@ for constituent,doodson_numbers in lunar_doodson_numbers.items():
   solar_doodson_numbers[constituent][1] -= doodson_numbers[0] # -s
   solar_doodson_numbers[constituent][2] += doodson_numbers[0] # +h
 
-tidal_phase_origin={
-    'Z0':0., 
+# a defaultdict which returns float() (which gives 0.0) by default
+tidal_phase_origin = collections.defaultdict(float)
+tidal.phase_origin.update({
     # the origins of the diurnal constituents corresponds to what is given in the UKHO specificaiton
     # for S1 and K1 there are multiple different entries - in that case we try to correspond to FES and OTPS
     'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':180.,
-    'M2':0., 'S2':0., 'N2':0., 'K2':0., 'L2':180., 
-    'MF':0., 'MM':0., 'SSA':0., 'SA':0.,
-    '2N2':0., 'MU2':0., 'NU2':0., 'T2':0.,
-    'M4':0., 'MS4':0., 'MN4':0.}
+    'L2':180.} )
 
 # compute the astronomical arguments H, s, h, p'
 def astronomical_argument(time):
@@ -134,6 +135,8 @@ def astronomical_argument(time):
 
 nodal_correction_f0 = {
   'MF': 1.043, 
+  'MFM': 1.043, 
+  'MTM': 1.043, 
   'O1': 1.009,
   'Q1': 1.009,
   'K1': 1.006,
@@ -141,6 +144,8 @@ nodal_correction_f0 = {
 nodal_correction_f1 = {
   'MM': -0.130,
   'MF': +0.414,
+  'MFM': +0.414,
+  'MTM': +0.414,
   'O1': +0.187,
   'Q1': +0.187,
   'K1': +0.115,
@@ -149,6 +154,8 @@ nodal_correction_f1 = {
   'K2': +0.286}
 nodal_correction_u1 = {
   'MF': -0.41364303,
+  'MFM': -0.41364303,
+  'MTM': -0.41364303,
   'O1':  0.18849556,
   'Q1':  0.18849556,
   'K1': -0.1553343,
