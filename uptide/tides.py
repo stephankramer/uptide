@@ -17,8 +17,12 @@ class Tides(object):
     else:
       self.constituents = tidal.omega.keys()
 
-    self.omega = numpy.array(
+    try:
+      self.omega = numpy.array(
         [tidal.omega[constituent] for constituent in self.constituents])
+    except KeyError:
+      print "*** Unsupported constituent(s) in uptide: ", set(self.constituents)-set(tidal.omega.keys())
+      raise
     self.phi = None # Greenwich argument
     self.f = None # nodal amplitude correction
     self.u = None # nodal phase correction
