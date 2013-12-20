@@ -105,7 +105,9 @@ for constituent,doodson_numbers in lunar_doodson_numbers.items():
 
 tidal_phase_origin={
     'Z0':0., 
-    'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':90.,
+    # the origins of the diurnal constituents corresponds to what is given in the UKHO specificaiton
+    # for S1 and K1 there are multiple different entries - in that case we try to correspond to FES and OTPS
+    'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':180.,
     'M2':0., 'S2':0., 'N2':0., 'K2':0., 'L2':180., 
     'Mf':0., 'Mm':0., 'Ssa':0., 'Sa':0.,
     '2N2':0., 'MU2':0., 'NU2':0., 'T2':0.,
