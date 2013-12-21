@@ -85,8 +85,10 @@ lunar_doodson_numbers = {
   'MS4': [ 4.0, 2.0, -2.0, 0.0],
   'MN4': [ 4.0, -1.0, 0.0, 1.0],
   'N4' : [ 4.0, -2.0, 0.0, 2.0],
+  'S4':  [ 4.0, 4.0, -4.0, 0.0],
   # long period species:
   'MF': [ 0.0, 2.0, 0.0, 0.0],
+  'MSF': [ 0.0, 2.0, -2.0, 0.0],
   'MM': [ 0.0, 1.0, 0.0, -1.0],
   'MTM': [ 0.0, 3.0, 0.0, -1.0], # name according to FES, same as MFM
   'MFM': [ 0.0, 3.0, 0.0, -1.0], # this is the name according to UKHO
@@ -156,6 +158,7 @@ nodal_correction_f0 = {
 nodal_correction_f1 = {
   'MM': -0.130,
   'MF': +0.414,
+  'MSF': -0.037, # f is the same M2 according to UKHO
   'MFM': +0.414,
   'MTM': +0.414,
   'MSQM': +0.414,
@@ -171,6 +174,7 @@ nodal_correction_f1 = {
   }
 nodal_correction_u1 = {
   'MF': -0.41364303,
+  'MSF': -0.03665191, # MSF=S2-M2 so u is - of M2 according to UKHO, but + of U2 according to FES!!
   'MFM': -0.41364303,
   'MTM': -0.41364303,
   'MSQM': -0.41364303,
