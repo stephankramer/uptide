@@ -81,6 +81,7 @@ lunar_doodson_numbers = {
   'MU2': [ 2.0, -2.0, 2.0, 0.0],
   'NU2': [ 2.0, -1.0, 2.0, -1.0],
   'T2':  [ 2.0, 2.0, -3.0, 0.0], # what about its p' component?
+  'M3':  [ 3.0, 0.0, 0.0, 0.0],
   'M4':  [ 4.0, 0.0, 0.0, 0.0],
   'MS4': [ 4.0, 2.0, -2.0, 0.0],
   'MN4': [ 4.0, -1.0, 0.0, 1.0],
@@ -116,7 +117,7 @@ tidal_phase_origin.update({
     # the origins of the diurnal constituents corresponds to what is given in the UKHO specificaiton
     # for S1 and K1 there are multiple different entries - in that case we try to correspond to FES and OTPS
     'J1': 90., 'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':180.,
-    'L2':180., 'LAMBDA2':180.})
+    'L2':180., 'LAMBDA2':180., 'M3':180.})
 
 # compute the astronomical arguments H, s, h, p'
 def astronomical_argument(time):
@@ -161,7 +162,9 @@ nodal_correction_f1 = {
   'N2': -0.037,
   'L2': -0.037,
   'LAMBDA2': -0.037,
-  'K2': +0.286}
+  'K2': +0.286,
+  'M3': -0.037*3./2., # 3/2 of M2
+  }
 nodal_correction_u1 = {
   'MF': -0.41364303,
   'MFM': -0.41364303,
@@ -175,7 +178,9 @@ nodal_correction_u1 = {
   'N2': -0.03665191,
   'L2': -0.03665191,
   'LAMBDA2': -0.03665191,
-  'K2': -0.30892328}
+  'K2': -0.30892328,
+  'M3': -0.03665191*3./2., # 3/2 of M2
+  }
 nodal_correction_f2={}
 # nodal corrections for M4, MN4, MS4
 for comp in ('M2','N2','S2'):
