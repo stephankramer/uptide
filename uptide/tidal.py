@@ -25,9 +25,9 @@ astronomical_omegas = [
         2*pi/(1.03505*day),    # omega_1, cm:  mean lunar day (this is one more significant figure than in Pugh obtained from 1.0/0.9661369, necessary to match Schwiderski's frequencies)
         2*pi/(27.3217*day),     # omega_2, s:   sidereal month
         2*pi/(365.2422*day),     # omega_3, h:   tropical year
-        2*pi*3.0937e-4/day      # omega_4, p:   moon's perigee (8.85 julian years)
-        #-2*pi*1.471e-4/day,       # omega_5, N:   regression of moon's nodes
-        #2*pi/(20942*julian_year) # omega_6, pp:  perihelion
+        2*pi*3.0937e-4/day,      # omega_4, p:   moon's perigee (8.85 julian years)
+        -2*pi*1.471e-4/day,       # omega_5, N:   regression of moon's nodes
+        2*pi/(20942*julian_year) # omega_6, pp:  perihelion
        ]
 
 """longterm variation matrix, encoding formulae by 
@@ -77,11 +77,12 @@ lunar_doodson_numbers = {
   'LAMBDA2': [ 2.0, 1.0, -2.0, 1.0],
   'EPS2': [ 2.0, -3.0, 2.0, 1.0],
   'MKS2': [ 2.0, 0.0, 2.0, 0.0],
+  'R2': [2.0, 2.0, -1.0, 0.0],
   # Higher-order (nonlinear) components, these are simply combinations of the above:
   '2N2': [ 2.0, -2.0, 0.0, 2.0],
   'MU2': [ 2.0, -2.0, 2.0, 0.0],
   'NU2': [ 2.0, -1.0, 2.0, -1.0],
-  'T2':  [ 2.0, 2.0, -3.0, 0.0], # what about its p' component?
+  'T2':  [ 2.0, 2.0, -3.0, 0.0],
   'MS4': [ 4.0, 2.0, -2.0, 0.0],
   'MN4': [ 4.0, -1.0, 0.0, 1.0],
   'N4' : [ 4.0, -2.0, 0.0, 2.0],
@@ -95,10 +96,15 @@ lunar_doodson_numbers = {
   'MSQM': [ 0.0, 4.0, -2.0, 0.0],
   'SSA': [ 0.0, 0.0, 2.0, 0.0],
   'SA': [ 0.0, 0.0, 1.0, 0.0]}
-
 # add M3-12
 for n in range(3,13):
   lunar_doodson_numbers['M'+str(n)] = [n*1.0, 0.0, 0.0, 0.0]
+
+# add two columns for N and p' dependency
+for constituent,doodson_numbers in lunar_doodson_numbers.iteritems():
+  lunar_doodson_numbers[constituent] = doodson_numbers + [0.0, 0.0]
+lunar_doodson_numbers['R2'][-1] = -1.0
+lunar_doodson_numbers['T2'][-1] = 1.0
 
 # now we can compute the frequencies of the tidal constituents
 omega={}
@@ -123,7 +129,7 @@ tidal_phase_origin.update({
     # the origins of the diurnal constituents corresponds to what is given in the UKHO specificaiton
     # for S1 and K1 there are multiple different entries - in that case we try to correspond to FES and OTPS
     'J1': 90., 'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':180.,
-    'L2':180., 'LAMBDA2':180., 'M3':180.})
+    'L2':180., 'LAMBDA2':180., 'R2':180., 'M3':180.})
 
 # compute the astronomical arguments H, s, h, p'
 def astronomical_argument(time):
@@ -212,8 +218,8 @@ nodal_correction_f1['N4'] = nodal_correction_f1['M4']
 nodal_correction_u1['N4'] = nodal_correction_u1['M4']
 
 # nodal corrections that are the same as M2 and N2 (see Pugh table 4.3):
-# (LAMBDA2 isn't correct here)
-for comp in ('2N2', 'MU2', 'NU2', 'T2', 'L2', 'LAMBDA2'):
+# (L2 according to UKHO, LAMBDA2 isn't correct here)
+for comp in ('2N2', 'MU2', 'NU2', 'N2', 'L2', 'LAMBDA2'):
   nodal_correction_f0[comp] = nodal_correction_f0.get('M2', 1.0)
   nodal_correction_f1[comp] = nodal_correction_f1.get('M2', 0.0)
   nodal_correction_u1[comp] = nodal_correction_u1.get('M2', 0.0)
@@ -236,9 +242,9 @@ def nodal_corrections(constituents, N, pp):
   return numpy.array(f), numpy.array(u)
 
 def tidal_arguments(constituents, time):
-    H,s,h,p,N,pp = astronomical_argument(time)
+    astro = astronomical_argument(time)
     arguments = []
     for constituent in constituents:
-      arguments.append( (numpy.dot(solar_doodson_numbers[constituent], [H,s,h,p]) 
+      arguments.append( (numpy.dot(solar_doodson_numbers[constituent], astro) 
         + tidal_phase_origin[constituent]) * deg2rad )
     return numpy.array(arguments)
