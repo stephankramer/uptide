@@ -76,14 +76,15 @@ lunar_doodson_numbers = {
   'L2': [ 2.0, 1.0, 0.0, -1.0],
   'LAMBDA2': [ 2.0, 1.0, -2.0, 1.0],
   'EPS2': [ 2.0, -3.0, 2.0, 1.0],
+  'MKS2': [ 2.0, 0.0, 2.0, 0.0],
   # Higher-order (nonlinear) components, these are simply combinations of the above:
   '2N2': [ 2.0, -2.0, 0.0, 2.0],
   'MU2': [ 2.0, -2.0, 2.0, 0.0],
   'NU2': [ 2.0, -1.0, 2.0, -1.0],
   'T2':  [ 2.0, 2.0, -3.0, 0.0], # what about its p' component?
-  'M3':  [ 3.0, 0.0, 0.0, 0.0],
   'MS4': [ 4.0, 2.0, -2.0, 0.0],
   'MN4': [ 4.0, -1.0, 0.0, 1.0],
+  'N4' : [ 4.0, -2.0, 0.0, 2.0],
   # long period species:
   'MF': [ 0.0, 2.0, 0.0, 0.0],
   'MM': [ 0.0, 1.0, 0.0, -1.0],
@@ -150,7 +151,8 @@ nodal_correction_f0 = {
   'Q1': 1.009,
   'J1': 1.102, # we use the first 2 terms of UKHO: f=1.1029 + 0.1676 cos N - 0.0170 cos 2N + 0.0016 cos 3N
   'K1': 1.006,
-  'K2': 1.024}
+  'K2': 1.024,
+  'MKS2': 1.024} # MKS2=M2+K2-S2
 nodal_correction_f1 = {
   'MM': -0.130,
   'MF': +0.414,
@@ -165,6 +167,7 @@ nodal_correction_f1 = {
   'N2': -0.037,
   'L2': -0.037,
   'K2': +0.286,
+  'MKS2': -0.037+0.286, # MKS2=M2+K2-S2
   }
 nodal_correction_u1 = {
   'MF': -0.41364303,
@@ -179,6 +182,7 @@ nodal_correction_u1 = {
   'N2': -0.03665191,
   'L2': -0.03665191,
   'K2': -0.30892328,
+  'MKS2': -0.03665191-0.30892328, # MKS2=M2+K2-S2
   }
 
 # nodal corrections for MN4, MS4
@@ -198,6 +202,10 @@ for n in range(3,13):
   nodal_correction_f0[name] = m2f0**(n/2.)
   nodal_correction_f1[name] = (m2f1/m2f0)*n/2.
   nodal_correction_u1[name] = m2u1*n/2.
+# nodal correction for N4=M4
+nodal_correction_f0['N4'] = nodal_correction_f0['M4']
+nodal_correction_f1['N4'] = nodal_correction_f1['M4']
+nodal_correction_u1['N4'] = nodal_correction_u1['M4']
 
 # nodal corrections that are the same as M2 and N2 (see Pugh table 4.3):
 # (LAMBDA2 isn't correct here)
