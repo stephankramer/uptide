@@ -67,12 +67,14 @@ lunar_doodson_numbers = {
   'Q1': [ 1.0, -2.0, 0.0, 1.0],
   'P1': [ 1.0, 1.0, -2.0, 0.0],
   'S1': [ 1.0, 1.0, -1.0, 0.0],
+  'J1': [ 1.0, 2.0, 0.0,  -1.0],
   # Semi-diurnal components:
   'M2': [ 2.0, 0.0, 0.0, 0.0],
   'S2': [ 2.0, 2.0, -2.0, 0.0],
   'N2': [ 2.0, -1.0, 0.0, 1.0],
   'K2': [ 2.0, 2.0, 0.0, 0.0],
   'L2': [ 2.0, 1.0, 0.0, -1.0],
+  'EPS2': [ 2.0, -3.0, 2.0, 1.0],
   # Higher-order (nonlinear) components, these are simply combinations of the above:
   '2N2': [ 2.0, -2.0, 0.0, 2.0],
   'MU2': [ 2.0, -2.0, 2.0, 0.0],
@@ -112,7 +114,7 @@ tidal_phase_origin = collections.defaultdict(float)
 tidal_phase_origin.update({
     # the origins of the diurnal constituents corresponds to what is given in the UKHO specificaiton
     # for S1 and K1 there are multiple different entries - in that case we try to correspond to FES and OTPS
-    'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':180.,
+    'J1': 90., 'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':180.,
     'L2':180.} )
 
 # compute the astronomical arguments H, s, h, p'
@@ -141,6 +143,7 @@ nodal_correction_f0 = {
   'MSQM': 1.043,
   'O1': 1.009,
   'Q1': 1.009,
+  'J1': 1.102, # we use the first 2 terms of UKHO: f=1.1029 + 0.1676 cos N - 0.0170 cos 2N + 0.0016 cos 3N
   'K1': 1.006,
   'K2': 1.024}
 nodal_correction_f1 = {
@@ -151,6 +154,7 @@ nodal_correction_f1 = {
   'MSQM': +0.414,
   'O1': +0.187,
   'Q1': +0.187,
+  'J1': +0.1676, # we use the first 2 terms of UKHO: f=1.1029 + 0.1676 cos N - 0.0170 cos 2N + 0.0016 cos 3N
   'K1': +0.115,
   'M2': -0.037,
   'N2': -0.037,
@@ -162,6 +166,7 @@ nodal_correction_u1 = {
   'MSQM': -0.41364303,
   'O1':  0.18849556,
   'Q1':  0.18849556,
+  'J1':  -12.94*deg2rad, # first term of UKHO: u = - 12.94 sin N + 1.34 sin 2N - 0.19 sin 3N
   'K1': -0.1553343,
   'M2': -0.03665191,
   'N2': -0.03665191,
