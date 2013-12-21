@@ -158,6 +158,7 @@ nodal_correction_f1 = {
   'K1': +0.115,
   'M2': -0.037,
   'N2': -0.037,
+  'L2': -0.037,
   'K2': +0.286}
 nodal_correction_u1 = {
   'MF': -0.41364303,
@@ -170,6 +171,7 @@ nodal_correction_u1 = {
   'K1': -0.1553343,
   'M2': -0.03665191,
   'N2': -0.03665191,
+  'L2': -0.03665191,
   'K2': -0.30892328}
 nodal_correction_f2={}
 # nodal corrections for M4, MN4, MS4
