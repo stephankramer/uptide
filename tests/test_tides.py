@@ -12,30 +12,42 @@ class TestTidal(unittest.TestCase):
     # should still pass
     self.tide = uptide.Tides(
         ['Q1', 'P1', 'K2', 'Mm', 'S2',
-          'MS4', 'MN4', 'M4', 'K1', 'Mf',
+          'MS4', 'MN4', 'K1', 'Mf',
           'L2', 'M2', 'N2', 'Z0', 'Sa',
           'O1', 'S1', 'Ssa', '2N2', 'MU2',
-          'NU2', 'T2'])
+          'NU2', 'T2', 'J1',  'EPS2', 'LAMBDA2',
+          'MSQM', 'MFM', 'MTM'
+          ])
     self.tide.set_initial_time(datetime.datetime(2003,1,17,19,30))
+    self.mntide = uptide.Tides(['M'+str(n) for n in range(2,13)])
+    self.mntide.set_initial_time(datetime.datetime(2003,1,17,19,30))
 
   def test_compute_nodal_corrections(self):
     self.tide.compute_nodal_corrections(10000)
     # test phase corrections
-    for x,y in zip(self.tide.u,
+    for x,y in zip(self.tide.u, 
         [ 0.17238093,  0.        , -0.28251319,  0.        ,  0.        ,
-         -0.03351851, -0.06703702, -0.06703702, -0.14205465, -0.37828036,
-          0.        , -0.03351851, -0.03351851,  0.        ,  0.        ,
-          0.17238093,  0.        ,  0.0       , -0.03351851, -0.03351851, 
-          -0.03351851, -0.03351851]):
+         -0.03351851, -0.06703702, -0.14205465, -0.37828036,
+         -0.03351851, -0.03351851, -0.03351851,  0.        ,  0.        ,
+          0.17238093,  0.        ,  0.0       , -0.03351851, -0.03351851,
+         -0.03351851, -0.03351851, -0.20653789,  0.        , -0.03351851,
+         -0.37828036, -0.37828036, -0.37828036]):
       self.assertAlmostEqual(x,y)
     # test amplitude corrections
     for x,y in zip(self.tide.f,
-        [ 1.08465367,  1.        ,  1.13970561,  0.94740654 ,  1.        ,
-          0.98503109,  0.97028625,  0.97028625,  1.05252498 ,  1.21048994,
-          1.        ,  0.98503109,  0.98503109,  1.         ,  1.        ,
-          1.08465367,  1.        ,  1.        ,  0.98503109 , 0.98503109 ,
-          0.98503109 , 0.98503109]):
+        [ 1.08465367,  1.        ,  1.13970561,  0.94740654,  1.        ,
+          0.98503109,  0.97006218,  1.05252498,  1.21048994,
+          0.98503109,  0.98503109,  0.98503109,  1.        ,  1.        ,
+          1.08465367,  1.        ,  1.        ,  0.98503109,  0.98503109,
+          0.98503109,  0.98503109,  1.16980511,  1.        ,  0.98503109,
+          1.21048994,  1.21048994,  1.21048994]):
       self.assertAlmostEqual(x,y)
+    # test Mn nodal corrections:
+    self.mntide.compute_nodal_corrections(1234.)
+    for i in range(1,len(self.mntide.f)):
+      n=i+2
+      self.assertAlmostEqual(self.mntide.f[i]-1.0, (self.mntide.f[0]-1.0)*(n/2.))
+      self.assertAlmostEqual(self.mntide.u[i], self.mntide.u[0]*(n/2.))
 
   def test_ap_vs_complex(self):
     N = len(self.tide.constituents)
@@ -49,7 +61,10 @@ class TestTidal(unittest.TestCase):
     self.assertAlmostEqual(numpy.linalg.norm(from_ap-from_complex), 0.0)
 
   def test_all_constituents_are_tested(self):
-    self.assertEqual(set(uptide.tidal.omega.keys()), set(self.tide.constituents))
+    supported = set(uptide.tidal.omega.keys())
+    tested = set(self.tide.constituents)
+    tested.update(set(self.mntide.constituents))
+    self.assertEqual(supported, tested)
 
 if __name__ == '__main__':
       unittest.main()
