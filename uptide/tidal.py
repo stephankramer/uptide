@@ -82,7 +82,6 @@ lunar_doodson_numbers = {
   'NU2': [ 2.0, -1.0, 2.0, -1.0],
   'T2':  [ 2.0, 2.0, -3.0, 0.0], # what about its p' component?
   'M3':  [ 3.0, 0.0, 0.0, 0.0],
-  'M4':  [ 4.0, 0.0, 0.0, 0.0],
   'MS4': [ 4.0, 2.0, -2.0, 0.0],
   'MN4': [ 4.0, -1.0, 0.0, 1.0],
   # long period species:
@@ -93,6 +92,10 @@ lunar_doodson_numbers = {
   'MSQM': [ 0.0, 4.0, -2.0, 0.0],
   'SSA': [ 0.0, 0.0, 2.0, 0.0],
   'SA': [ 0.0, 0.0, 1.0, 0.0]}
+
+# add M3-12
+for n in range(3,13):
+  lunar_doodson_numbers['M'+str(n)] = [n*1.0, 0.0, 0.0, 0.0]
 
 # now we can compute the frequencies of the tidal constituents
 omega={}
@@ -161,9 +164,7 @@ nodal_correction_f1 = {
   'M2': -0.037,
   'N2': -0.037,
   'L2': -0.037,
-  'LAMBDA2': -0.037,
   'K2': +0.286,
-  'M3': -0.037*3./2., # 3/2 of M2
   }
 nodal_correction_u1 = {
   'MF': -0.41364303,
@@ -177,27 +178,32 @@ nodal_correction_u1 = {
   'M2': -0.03665191,
   'N2': -0.03665191,
   'L2': -0.03665191,
-  'LAMBDA2': -0.03665191,
   'K2': -0.30892328,
-  'M3': -0.03665191*3./2., # 3/2 of M2
   }
-nodal_correction_f2={}
-# nodal corrections for M4, MN4, MS4
-for comp in ('M2','N2','S2'):
-  if comp[0]=='M':
-    name='M4'
-  else:
-    name='M'+comp[0]+'4'
-  nodal_correction_f0[name] = nodal_correction_f0.get('M2',1.0) * nodal_correction_f0.get(comp, 1.0)
-  nodal_correction_f1[name] = (nodal_correction_f0.get('M2',1.0) * nodal_correction_f1.get(comp, 0.0) +
-            nodal_correction_f1.get('M2',0.0) * nodal_correction_f0.get(comp, 1.0))
-  nodal_correction_f2[name] = nodal_correction_f1.get('M2',0.0) * nodal_correction_f1.get(comp, 0.0)
-  nodal_correction_u1[name] = nodal_correction_u1.get('M2',0.0) + nodal_correction_u1.get(comp, 0.0)
+
+# nodal corrections for MN4, MS4
+m2f0 = nodal_correction_f0.get('M2', 1.0)
+m2f1 = nodal_correction_f1.get('M2', 0.0)
+m2u1 = nodal_correction_u1.get('M2', 0.0)
+for comp in ('N2','S2'):
+  name='M'+comp[0]+'4'
+  nodal_correction_f0[name] =  m2f0 * nodal_correction_f0.get(comp, 1.0)
+  nodal_correction_f1[name] = (m2f0 * nodal_correction_f1.get(comp, 0.0) +
+            m2f1 * nodal_correction_f0.get(comp, 1.0))
+  nodal_correction_u1[name] = m2u1 + nodal_correction_u1.get(comp, 0.0)
+
+# nodal corrections for M3-12
+for n in range(3,13):
+  name='M'+str(n)
+  nodal_correction_f0[name] = m2f0**(n/2.)
+  nodal_correction_f1[name] = (m2f1/m2f0)*n/2.
+  nodal_correction_u1[name] = m2u1*n/2.
+
 # nodal corrections that are the same as M2 and N2 (see Pugh table 4.3):
-for comp in ('2N2', 'MU2', 'NU2', 'T2'):
+# (LAMBDA2 isn't correct here)
+for comp in ('2N2', 'MU2', 'NU2', 'T2', 'L2', 'LAMBDA2'):
   nodal_correction_f0[comp] = nodal_correction_f0.get('M2', 1.0)
   nodal_correction_f1[comp] = nodal_correction_f1.get('M2', 0.0)
-  nodal_correction_f2[comp] = nodal_correction_f2.get('M2', 0.0)
   nodal_correction_u1[comp] = nodal_correction_u1.get('M2', 0.0)
 
 def nodal_corrections(constituents, N, pp):
@@ -211,8 +217,7 @@ def nodal_corrections(constituents, N, pp):
     # amplitude corrections:
     f0 = nodal_correction_f0.get(constituent, 1.0)
     f1 = nodal_correction_f1.get(constituent, 0.0)
-    f2 = nodal_correction_f2.get(constituent, 0.0)
-    f.append(f0 + f1*cosN + f2*cosNsq)
+    f.append(f0 + f1*cosN)
     # phase corrections:
     u.append(nodal_correction_u1.get(constituent, 0.0)*sinN)
 
