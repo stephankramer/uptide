@@ -157,7 +157,7 @@ nodal_correction_f0 = {
   'MSQM': 1.043,
   'O1': 1.009,
   'Q1': 1.009,
-  'J1': 1.102, # we use the first 2 terms of UKHO: f=1.1029 + 0.1676 cos N - 0.0170 cos 2N + 0.0016 cos 3N
+  'J1': 0.996, # we take the average of min and max from Schureman's table
   'K1': 1.006,
   'K2': 1.024,
   'MKS2': 1.024} # MKS2=M2+K2-S2
@@ -170,7 +170,7 @@ nodal_correction_f1 = {
   'MSQM': +0.414,
   'O1': +0.187,
   'Q1': +0.187,
-  'J1': +0.1676, # we use the first 2 terms of UKHO: f=1.1029 + 0.1676 cos N - 0.0170 cos 2N + 0.0016 cos 3N
+  'J1': +0.169, # we take half the difference between max and min from Schureman's table
   'K1': +0.115,
   'M2': -0.037,
   'N2': -0.037,
@@ -218,8 +218,8 @@ nodal_correction_f1['N4'] = nodal_correction_f1['M4']
 nodal_correction_u1['N4'] = nodal_correction_u1['M4']
 
 # nodal corrections that are the same as M2 and N2 (see Pugh table 4.3):
-# (L2 according to UKHO, LAMBDA2 isn't correct here)
-for comp in ('2N2', 'MU2', 'NU2', 'N2', 'L2', 'LAMBDA2'):
+# (L2 and EPS2 according to UKHO, LAMBDA2 isn't correct here)
+for comp in ('2N2', 'MU2', 'NU2', 'N2', 'L2', 'LAMBDA2', 'EPS2'):
   nodal_correction_f0[comp] = nodal_correction_f0.get('M2', 1.0)
   nodal_correction_f1[comp] = nodal_correction_f1.get('M2', 0.0)
   nodal_correction_u1[comp] = nodal_correction_u1.get('M2', 0.0)
