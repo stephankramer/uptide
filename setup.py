@@ -15,7 +15,7 @@ if '--with-fes' in script_args:
     library_dirs.append(os.environ['FES_LIB_DIR'])
   if 'FES_INCLUDE_DIR' in os.environ:
     include_dirs.append(os.environ['FES_INCLUDE_DIR'])
-  ext_modules.append(Extension("fes2012", ["uptide/fes2012.c"],
+  ext_modules.append(Extension("fes2012", ["fes/fes2012.c"],
     libraries=["fes", "netcdf"],
     library_dirs=library_dirs,
     include_dirs=include_dirs))
