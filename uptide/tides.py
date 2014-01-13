@@ -2,7 +2,6 @@
 import tidal
 import datetime
 import numpy
-import math
 
 class Tides(object):
 
