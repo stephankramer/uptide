@@ -56,7 +56,7 @@ cdef class Fes(object):
   def get_short_and_long_period_tide(self, lat, lon, time):
     """Computes the tide at the given location and time, separated in a short-period and long-period
     contribution:
-      h_sp, h_lp = <Fes-object>.get_short_and_long_period_tides(lat, lon, time)"""
+      h_sp, h_lp = <Fes-object>.get_short_and_long_period_tide(lat, lon, time)"""
     cdef double h, h_lp
     self.core(lat, lon, time, &h, &h_lp)
     return h, h_lp
