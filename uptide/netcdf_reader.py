@@ -234,10 +234,10 @@ class NetCDFInterpolator(object):
 
       for dimension,field_name in zip(dimensions, coordinate_fields):
         N = self.nc.dimensions[dimension]
-        self.shape.append(N)
         if not isinstance(N, int):
           # let's guess it's a netCDF4.Dimension, so we should ask for its len (yuck)
           N = len(N)
+        self.shape.append(N)
         val = self.nc.variables[field_name]
         if len(val.shape)==1:
           self.origin.append(val[0])
