@@ -8,13 +8,13 @@ script_args = sys.argv[1:]
 if '--with-fes' in script_args:
   script_args.remove('--with-fes')
   library_dirs = []; include_dirs = []
-  if 'FES_DIR' in os.environ:
-    library_dirs.append(os.path.join(os.environ['FES_DIR'], 'src'))
-    include_dirs.append(os.path.join(os.environ['FES_DIR'], 'src'))
   if 'FES_LIB_DIR' in os.environ:
     library_dirs.append(os.environ['FES_LIB_DIR'])
   if 'FES_INCLUDE_DIR' in os.environ:
     include_dirs.append(os.environ['FES_INCLUDE_DIR'])
+  if 'FES_DIR' in os.environ:
+    library_dirs.append(os.path.join(os.environ['FES_DIR'], 'src'))
+    include_dirs.append(os.path.join(os.environ['FES_DIR'], 'src'))
   ext_modules.append(Extension("fes2012", ["fes/fes2012.c"],
     libraries=["fes", "netcdf"],
     library_dirs=library_dirs,
