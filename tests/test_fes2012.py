@@ -7,7 +7,6 @@ except ImportError:
 
 try:
   fes_data = os.environ['FES_DATA']
-  print fes_data
 except:
   fes_data = None
 
