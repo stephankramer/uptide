@@ -49,8 +49,8 @@ class Interpolator(object):
     if x in self.extrapolation_points:
       return self.extrapolation_points[x]
 
-    # This should only happen infrequently, so warn user (till someone tells us this is too annoying)
-    print "Need to extrapolate point coordinates ", x
+    # This should only happen infrequently, so warn user (commented out because a user complained):
+    # print "Need to extrapolate point coordinates ", x
     ijs = [(i-1, j+1), (i-1, j), (i, j-1), (i+1, j-1), (i+2, j), (i+2, j+1), (i+1, j+2), (i, j+2)] # Neighbouring points
     ijs += [(i-1, j-1), (i+2, j-1), (i+2, j+2), (i-1, j+2)] # Diagonal points
 
