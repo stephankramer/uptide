@@ -53,7 +53,7 @@ class TidalNetCDFInterpolator(object):
     """
     self.tide = tide
     self.grid_file_name = grid_file_name
-    self.nci = netcdf_reader.NetCDFInterpolator(grid_file_name, dimensions,
+    self.ncg = netcdf_reader.NetCDFGrid(grid_file_name, dimensions,
         coordinate_fields)
 
     if ranges is not None:
@@ -62,13 +62,13 @@ class TidalNetCDFInterpolator(object):
       self.set_mask(mask)
 
   def set_ranges(self, ranges):
-    self.nci.set_ranges(ranges)
+    self.ncg.set_ranges(ranges)
 
   def set_mask(self, field_name):
-    self.nci.set_mask(field_name)
+    self.ncg.set_mask(field_name)
 
   def set_mask_from_fill_value(self, field_name, fill_value):
-    self.nci.set_mask_from_fill_value(field_name, fill_value)
+    self.ncg.set_mask_from_fill_value(field_name, fill_value)
 
   def load_amplitudes_and_phases(self, amplitude_file_name, amplitude_field_names,
       phase_file_name, phase_field_names):
@@ -104,16 +104,15 @@ class TidalNetCDFInterpolator(object):
     else:
       file_names = file_name
 
-    nci_filenm = self.grid_file_name
-    nci = self.nci
+    ncg_filenm = self.grid_file_name
+    ncg = self.ncg
 
     for filenm, fieldnm in zip(file_names, field_names):
-      if filenm!=nci_filenm:
-        # copies grid,mask and ranges information from self.nci (the "grid" netCDF file)
-        nci = netcdf_reader.NetCDFInterpolator(filenm, self.nci)
-        nci_filenm = filenm
-      nci.set_field(fieldnm)
-      val.append(nci.val[:])
+      if filenm!=ncg_filenm:
+        # copies grid,mask and ranges information from self.ncg (the "grid" netCDF file)
+        ncg = netcdf_reader.NetCDFGrid(filenm, self.ncg)
+        ncg_filenm = filenm
+      val.append(ncg.get_field(fieldnm))
     return val
 
   def load_amplitudes_and_phases_block(self,
@@ -144,15 +143,12 @@ class TidalNetCDFInterpolator(object):
 
   def _collect_fields_block(self, file_name, field_name, field_components):
     if file_name==self.grid_file_name:
-      nci = self.nci
+      ncg = self.ncg
     else:
-      # copies grid,mask and ranges information from self.nci (the "grid" netCDF file)
-      nci = netcdf_reader.NetCDFInterpolator(file_name, self.nci)
-    nci.set_field(field_name)
+      # copies grid,mask and ranges information from self.ncg (that is read from the "grid" netcdf file)
+      ncg = netcdf_reader.NetCDFInterpolator(file_name, self.ncg)
+    val = ncg.get_field(field_name)
 
-    val=[]
-    for component in field_components:
-      val.append(nci.val[component,:,:])
     return val
 
   def set_time(self, t):
@@ -161,7 +157,7 @@ class TidalNetCDFInterpolator(object):
     if not hasattr(self,"real_part"):
       raise Exception("Need to call load_amplitudes_and_phases() first!")
     val = self.tide.from_complex_components(self.real_part, self.imag_part, t)
-    self.interpolator = netcdf_reader.Interpolator(self.nci.origin, self.nci.delta, val, self.nci.mask)
+    self.interpolator = self.ncg.get_interpolator(field = val)
 
   def get_val(self, x, allow_extrapolation=False):
     """Interpolates the tidal signal in point x, computed in set_time(). The order 
@@ -178,8 +174,8 @@ def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
   where amplitudes and phases are stored in separate fields in a single file
   with field names such as M2amp, M2phase, etc. If present a field named "mask"
   with 0.0 for land and 1.0 for sea will also be recognized."""
-  if "mask" in tnci.nci.nc.variables:
-    tnci.set_mask("mask")
+  if "mask" in tnci.ncg.nc.variables:
+    tncg.set_mask("mask")
 
   amplitude_field_names = []
   phase_field_names = []
@@ -199,13 +195,12 @@ def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
   # read grid, ranges and mask from grid netCDF
   tnci = TidalNetCDFInterpolator(tide, grid_file_name,
       ('nx','ny'), ('lon_z','lat_z'), ranges=ranges)
-  if "mz" in tnci.nci.nc.variables:
-    tnci.set_mask("mz")
-  # now swap its nci (keeping all above information) with one for the data file
-  tnci.nci = netcdf_reader.NetCDFInterpolator(data_file_name, tnci.nci)
+  if "mz" in tnci.ncg.nc.variables:
+    tncg.set_mask("mz")
 
-  # constituents available in the netCDF file
-  constituents = tnci.nci.nc.variables['con'][:]
+  # read the constituents available in the netCDF file
+  nc = netcdf_reader.NetCDFFile(data_file_name, 'r')
+  constituents = nc.variables['con'][:]
   # dict that maps constituent names to indices
   constituent_index = dict(((constituent.tostring().strip(' \x00').lower(),i) for i,constituent in enumerate(constituents)))
   # the indices of the requested constituents
@@ -222,11 +217,11 @@ def FESTidalInterpolator(tide, fes_file_name, ranges=None):
   and phases are read from its Ha and Hg fields."""
   tnci = TidalNetCDFInterpolator(tide, fes_file_name,
       ('Y','X'), ('lat','lon'), ranges=ranges)
-  fill_value = tnci.nci.nc.variables['Ha'].missing_value
+  fill_value = tnci.ncg.nc.variables['Ha'].missing_value
   tnci.set_mask_from_fill_value('Ha', fill_value)
 
   # constituents available in the netCDF file
-  constituents = tnci.nci.nc.variables['spectrum'][:]
+  constituents = tnci.ncg.nc.variables['spectrum'][:]
   # dict that maps constituent names to indices
   constituent_index = dict(((constituent.tostring().strip(' \x00').lower(),i) for i,constituent in enumerate(constituents)))
   # the indices of the requested constituents
