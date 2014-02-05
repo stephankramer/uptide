@@ -80,19 +80,20 @@ class Interpolator(object):
     return val
     
 class NetCDFGrid(object):
-  """Implements an object to interpolate values from a NetCDF-stored data set.
+  """Implements an object to store grid information read from a NetCDF file. It can create an interpolator (see Interpolator class)
+  to interpolate NetCDF fields.
 
   The NetCDF file should contain two coordinate fields, e.g. latitude and longitude. Each of those two coordinates
-  is assumed to be aligned with one dimension of the logical 2D grid and should be equi-distant. 
-  To open the NetCDFInterpolator object:
+  is assumed to be aligned with one dimension of the logical 2D grid.
+  To open the NetCDFGrod object:
 
-    nci = NetCDFInterpolator('foo.nc', ('nx', 'ny'), ('longitude', latitude'))
+    ncg = NetCDFGrid('foo.nc', ('nx', 'ny'), ('longitude', latitude'))
 
   Here 'nx' and 'ny' refer to the names of the dimensions of the logical 2D grid and 'longitude' and 'latitude' to the 
   names of the coordinate fields. The order of these should match (e.g. here, the 'nx' dimension should be the 
   dimension in which 'longitude' increases, and 'ny' the dimension in which 'latitude' increases) and determines the order
-  of coordinates in all other arguments (ranges and get_val).
-  The names  can of dimension and coordinate fields can be obtained by using the ncdump program of the standard NetCDF utils:
+  of coordinates in arguments to method calls.
+  The names of dimension and coordinate fields can be obtained by using the ncdump program of the standard NetCDF utils:
     
     $ ncdump -h foo.nc
     netcdf foo {
@@ -106,49 +107,55 @@ class NetCDFGrid(object):
         double latitude(ny) ;
     }
 
-  The coordinate fields may be stored as 1d or 2d fields (although only two values will actually be read to determine the 
-  origin and step size). The order of the dimensions and coordinate fields specified in the call does not have to match that
+  The coordinate fields may be stored as 1d or 2d fields. For 2d coordinate fields however, it is assumed that the dimensions are
+  coordinate aligned: so for example if longitude is stored as longitude(nx, ny) we assume longitude does not vary in the 
+  ny direction.  The order of the dimensions and coordinate fields specified in the call does not have to match that
   of the netCDF file, i.e. we could have opened the same file with:
 
     nci_transpose = NetCDFInterpolator('foo.nc', ('ny', 'nx'), ('latitude', longitude'))
 
-  The only difference would be the order in which the coordinates to get_val and set_ranges are specified.
-  To indicate the field to be interpolated:
+  The only difference would be the order of the coordinates used in subsequent method calls.
+  The main method to use with this object is get_interpolator which returns an Interpolator object
+  that can be called to interpolate NetCDF fields in arbitrary points:
 
-    nci.set_field('z')
+    ip = ncg.get_interpolator('z')
+    ip.get_val((lat, lon))
 
-  To interpolate this field in any arbitrary point:
-
-    nci.get_val((-3.0, 58.5))
-
+  The order of the coordinates given to get_val() is determined by the order of the coordinates upon creation of the ncg object.
   If many interpolations are done 
-  within a sub-domain of the area covered by the NetCDF, it may be much more efficient to indicate the range of coordinates
-  with:
+  but only within a sub-domain of the area covered by the NetCDF, it may be much more efficient to indicate the range of coordinates
+  (before the call to get_interpolator()) with:
 
-     nci.set_ranges(((-4.0,-2.0),(58.0,59.0)))
+     ncg.set_ranges(((-4.0,-2.0),(58.0,59.0)))
 
   This will load all values within the indicated range (here -4.0<longitude<-2.0 and 58.0<latitude<59.0) in memory.
-  A land-mask can be provided to avoid interpolating from undefined land-values. The mask field should be 0.0 in land points
-  and 1.0 at sea.
+  A land-mask can be provided to avoid interpolating from undefined land-values. The mask field should be a NetCDF field that is
+  1.0 in land points and 0.0 at sea.
 
      nci.set_mask('mask')
 
   Alternatively, a mask can be defined from a fill value that has been used to indicate undefined land-points. The field name
   (not necessarily the same as the interpolated field) and fill value should be provided:
 
-     nci.set_mask_from_fill_value('z', -9999.)
+     ncg.set_mask_from_fill_value('z', -9999.)
 
-  It is allowed to switch between different fields using multiple calls of set_field(). The mask and ranges will be retained. It is
-  however not allowed to call set_mask() or set_ranges() more than once. Finally, 
-  for the case where the coordinate fields (and optionally
+  Instead of obtaining a value, we can ask for the underlying array using get_field:
+
+     ncg.get_field('z')
+
+  Returns an array that stores all the values of the 'z' field. If the order of the coordinates of the field specified 
+  in the NetCDF agree with that of the ncg object, a netcdf field object is returned that can be used as a numpy array. If the order
+  does not match a copy is returned in a numpy array with the dimensions reordered to match that of the ncg object.
+
+  Finally,  for the case where the coordinate fields (and optionally
   the mask field) is stored in a different file than the one containing the field values to be interpolated, the following syntax
   is provided:
 
-    nci1 = NetCDFInterpolator('grid.nc', ('nx', 'ny'), ('longitude', latitude'))
-    nci1.set_mask('mask')
-    nci2 = NetCDFInterpolator('values.nc', nci1)
-    nci2.set_field('temperature')
-    nci2.get_val(...)
+    ncg1 = NetCDFInterpolator('grid.nc', ('nx', 'ny'), ('longitude', latitude'))
+    ncg1.set_mask('mask')
+    ncg2 = NetCDFInterpolator('values.nc', ncg1)
+    ncg2.set_field('temperature')
+    ncg2.get_val(...)
 
   Here, the coordinate information of nci, including the mask and ranges if set, are copied and used in nci2.
 
@@ -249,23 +256,30 @@ class NetCDFGrid(object):
 
   def set_mask_from_fill_value(self, field_name, fill_value):
     """Sets a land mask, where all points for which the supplied field equals the supplied fill value. The supplied field_name
-    does not have to be the same as the field that is interpolated from, set with set_field()."""
+    does not have to be the same as the field name that will be given to get_interpolator()."""
     val = self.get_field(field_name)
     self.mask = numpy.where(val[:]==fill_value,1.,0.)
 
-  def get_interpolator(self, **kwargs):
-    if len(kwargs)!=1:
-      raise TypeError("get_interpolator() expects a single (keyword) argument")
-    if "field_name" in kwargs:
-      field_name = kwargs["field_name"]
-      val = self.get_field(field_name)
-    elif "field" in kwargs:
-      val = kwargs["field"]
-    else:
-      raise TypeError("get_interpolator() expects field_name or field keyword argument")
+  def get_interpolator(self, field_name):
+    """Return an Interpolator object that interpolates a field in an arbitrary point. For example:
+       ip = ncg.get_interpolator(field_name='z')
+       y = ip.get_val((0.0,1.0))
+    The order of the coordinates in the get_val() calls should be the same as specified when creating the ncg object."""
+    val = self.get_field(field_name)
+    return self.get_interpolator_from_array(val)
 
+  def get_interpolator_from_array(self, field):
+    """Same as get_interpolator(), but instead of reading a field from the NetCDF file the field is interpolated from
+    the supplied array. This array should be in the same shape as an array returned from get_field. This can be used
+    to first do computations on the grid *before* interpolating. Example:
+       amp = ncg.get_field('amplitude')
+       pha = ncg.get_field('phase')
+       field = amp*numpy.cos(pha) # computes the real component of the complex number given by amp and phase
+       ip = ncg.get_interpolator_from_array(field)
+       y = ip.get_val((0.0,1.0))
+    """
     if self.iranges is None:
-      interpolator = Interpolator(self.xy[0], self.xy[1], val,
+      interpolator = Interpolator(self.xy[0], self.xy[1], field,
           mask = self.mask)
     else:
       ir = self.iranges
@@ -273,7 +287,7 @@ class NetCDFGrid(object):
       if mask is not None:
         mask = mask[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
       interpolator = Interpolator(self.xy[0][ir[0][0]:ir[0][1]],
-          self.xy[1][ir[1][0]:ir[1][1]], val[ir[0][0]:ir[0][1], ir[1][0]:ir[1][1]],
+          self.xy[1][ir[1][0]:ir[1][1]], field[ir[0][0]:ir[0][1], ir[1][0]:ir[1][1]],
           mask = mask)
 
     return interpolator

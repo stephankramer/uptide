@@ -157,7 +157,7 @@ class TidalNetCDFInterpolator(object):
     if not hasattr(self,"real_part"):
       raise Exception("Need to call load_amplitudes_and_phases() first!")
     val = self.tide.from_complex_components(self.real_part, self.imag_part, t)
-    self.interpolator = self.ncg.get_interpolator(field = val)
+    self.interpolator = self.ncg.get_interpolator_from_array(val)
 
   def get_val(self, x, allow_extrapolation=False):
     """Interpolates the tidal signal in point x, computed in set_time(). The order 
