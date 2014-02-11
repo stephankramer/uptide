@@ -10,7 +10,7 @@ limited functionality for tidal harmonic analysis is also available,
 Prerequisites
 ---------------
 * python 2.6 or 2.7 (not tested for python 3)
-* numpy
+* numpy and scipy
 * to read from netCDF sources: python netCDF support. This can be either:
 [netCDF4](http://code.google.com/p/netcdf4-python/), or
 [Scientific.IO.NetCDF](http://dirac.cnrs-orleans.fr/plone/software/scientificpython/),
