@@ -45,7 +45,7 @@ class Interpolator(object):
   def set_mask(self, mask, extrapolation_level = DEFAULT_EXTRAPOLATION_LEVEL):
     self.val_with_fill = numpy.array(self.orig_val[:])
     self.mask = numpy.array(mask[:], dtype=bool)
-    self.val_with_fill[self.mask] = -9999.
+    self.val_with_fill[self.mask] = numpy.nan
 
     for n in range(extrapolation_level):
       new_mask = numpy.copy(self.mask)
@@ -77,7 +77,7 @@ class Interpolator(object):
     if x[0]<self.x[0] or x[0]>self.x[-1] or x[1]<self.y[0] or x[1]>self.y[-1]:
       raise CoordinateError("Point outside domain", x)
     val = self.interpolator(x[0], x[1])[0,0]
-    if numpy.isnan(val) or val<-10.:
+    if numpy.isnan(val):
       raise CoordinateError("Point inside landmask", x)
     return val
     
