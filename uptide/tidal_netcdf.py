@@ -147,8 +147,11 @@ class TidalNetCDFInterpolator(object):
     else:
       # copies grid,mask and ranges information from self.ncg (that is read from the "grid" netcdf file)
       ncg = netcdf_reader.NetCDFGrid(file_name, self.ncg)
-    val = ncg.get_field(field_name)
+    field = ncg.get_field(field_name)
 
+    val=[]
+    for component in field_components:
+      val.append(field[component,:,:])
     return val
 
   def set_time(self, t):

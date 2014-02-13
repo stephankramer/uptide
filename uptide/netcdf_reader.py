@@ -216,6 +216,11 @@ class NetCDFGrid(object):
     """Set the range of the coordinates. All the values of points located within this range are read from file at once.
     This may be more efficient if many interpolations are done within this domain."""
 
+    if self.mask is not None:
+      raise NetCDFInterpolatorError("Should set ranges before setting the mask")
+    if self.iranges is not None:
+      raise NetCDFInterpolatorError("Can only set ranges once")
+
     self.iranges = []
     for xlimits, x in zip(ranges,self.xy):
       if xlimits[0]>x[-1] or xlimits[1]<x[0]:
@@ -225,6 +230,10 @@ class NetCDFGrid(object):
       imax = min(numpy.argmin(x<xlimits[1])+2, len(x))
       # note that we have to cast to ints as Scientific netcdf variables don't like ranges with numpy.int64 
       self.iranges.append( (int(imin), int(imax)) )
+
+    for i, ir in enumerate(self.iranges):
+      self.xy[i] = self.xy[i][ir[0]:ir[1]]
+
 
   def get_field(self, field_name):
     """Returns the field (as netcdf variable or numpy array) given 
@@ -247,11 +256,18 @@ class NetCDFGrid(object):
       raise NetCDFInterpolatorError("In the dimensions of the field in get_field(), both dimensions of the NetCDFGrid should occur once.")
 
     new_order.extend([dimx, dimy])
-    if new_order==range(len(val.dimensions)):
-      # if the dimensions are order correctly already, just pass the netcdf variable as is
-      return val
-    else:
-      return numpy.transpose(val[:], new_order)
+    if not new_order==range(len(val.dimensions)):
+      val = numpy.transpose(val[:], new_order)
+    if self.iranges is not None:
+      ir = self.iranges
+      if len(val.shape)==2:
+        val = val[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      elif len(val.shape)==3:
+        val = val[:,ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
+      else:
+        raise NetCDFInterpolatorError("NetCDF field in get_field() should be 2 or 3 dimensional")
+
+    return val
 
   def set_mask(self, field_name, extrapolation_level=DEFAULT_EXTRAPOLATION_LEVEL):
     """Sets a land mask from a mask field. This field should have a value of 0.0 for land points and 1.0 for the sea"""
@@ -284,16 +300,6 @@ class NetCDFGrid(object):
        ip = ncg.get_interpolator_from_array(field)
        y = ip.get_val((0.0,1.0))
     """
-    if self.iranges is None:
-      interpolator = Interpolator(self.xy[0], self.xy[1], field,
+    interpolator = Interpolator(self.xy[0], self.xy[1], field,
           mask=self.mask, extrapolation_level=self.extrapolation_level)
-    else:
-      ir = self.iranges
-      mask = self.mask
-      if mask is not None:
-        mask = mask[ir[0][0]:ir[0][1],ir[1][0]:ir[1][1]]
-      interpolator = Interpolator(self.xy[0][ir[0][0]:ir[0][1]],
-          self.xy[1][ir[1][0]:ir[1][1]], field[ir[0][0]:ir[0][1], ir[1][0]:ir[1][1]],
-          mask = mask, extrapolation_level=self.extrapolation_level)
-
     return interpolator
