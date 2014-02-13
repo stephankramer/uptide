@@ -204,7 +204,7 @@ def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
   tnci = TidalNetCDFInterpolator(tide, grid_file_name,
       ('nx','ny'), ('lon_z','lat_z'), ranges=ranges)
   if "mz" in tnci.ncg.nc.variables:
-    tnci.set_mask_from_fill_value("mz", 1)
+    tnci.set_mask_from_fill_value("mz", 0.0)
 
   # read the constituents available in the netCDF file
   nc = netcdf_reader.NetCDFFile(data_file_name, 'r')

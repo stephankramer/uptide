@@ -45,7 +45,7 @@ class Interpolator(object):
   def set_mask(self, mask, extrapolation_level = DEFAULT_EXTRAPOLATION_LEVEL):
     self.val_with_fill = numpy.array(self.orig_val[:])
     self.mask = numpy.array(mask[:], dtype=bool)
-    self.val_with_fill[self.mask] = numpy.nan
+    self.val_with_fill[self.mask] = -9999.
 
     for n in range(extrapolation_level):
       new_mask = numpy.copy(self.mask)
@@ -241,6 +241,12 @@ class NetCDFGrid(object):
     than specified on creation of the NetCDFInterpolator, it will return
     a numpy array with the dimensions reordered."""
     val = self.nc.variables[field_name]
+    # netCDF4 variables automatically turn the array into a masked array if the fill_value attribute is present
+    # sounds useful but breaks compatibility
+    try:
+      val.set_auto_maskandscale(False)
+    except AttributeError:
+      pass
 
     # work out correct order of dimensions
     new_order = []; dimx = None; dimy = None
