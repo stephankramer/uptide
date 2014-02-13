@@ -192,7 +192,7 @@ class NetCDFGrid(object):
         elif len(val.shape)==2:
           if val.dimensions[0]==dimension:
             self.xy.append(val[:,0])
-          elif val.dimension[1]==dimension:
+          elif val.dimensions[1]==dimension:
             self.xy.append(val[0,:])
           else:
             raise NetCDFInterpolatorError("Unrecognized dimension of coordinate field")

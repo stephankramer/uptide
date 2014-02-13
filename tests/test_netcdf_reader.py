@@ -2,7 +2,7 @@ import unittest
 from uptide.netcdf_reader import NetCDFGrid, CoordinateError, NetCDFFile
 import itertools
 import os
-from numpy import arange, array, ones
+import numpy
 
 # function used to fill the netcdf field, has to be linear
 def f(lat, lon):
@@ -10,32 +10,37 @@ def f(lat, lon):
 
 test_file_name1='tests/test_netcdf_reader1.nc'
 test_file_name2='tests/test_netcdf_reader2.nc'
+test_file_name3='tests/test_netcdf_reader3.nc'
+
+def _add_field_and_mask(nc, zval):
+    nc.createVariable('z', 'float64', ('lat','lon'))
+    nc.variables['z'][:,:] = zval
+    nc.createVariable('mask', 'float64', ('lat','lon'))
+    mask = numpy.ones((10,10),dtype='float64')
+    mask[3:,:] = 0.0
+    nc.variables['mask'][:,:] = mask
+    nc.createVariable('transposed_mask', 'float64', ('lon','lat'))
+    nc.variables['transposed_mask'][:,:] = mask.T
 
 class TestNetCDFGrid(unittest.TestCase):
   """Tests the uptide.netcdf.NetCDFGrid class"""
-  def setUp(self):
+  @classmethod
+  def setUpClass(cls):
     # it seems that many scipy installations are broken for
     # netcdf writing - therefore simply committing the
     # test files instead of writing them out on the fly here
     return
-    zval = array(
-        [[f(lat,lon) for lon in arange(10.0)]
-                     for lat in arange(10.0)])
+    zval = numpy.array(
+        [[f(lat,lon) for lon in numpy.arange(10.0)]
+                     for lat in numpy.arange(10.0)])
     nc = NetCDFFile(test_file_name1, 'w')
     nc.createDimension('lat', 10)
     nc.createDimension('lon', 10)
     nc.createVariable('latitude', 'float64', ('lat',))
     nc.createVariable('longitude', 'float64', ('lon',))
-    nc.variables['latitude'][:] = arange(10.0)
-    nc.variables['longitude'][:] = arange(10.0)
-    nc.createVariable('z', 'float64', ('lat','lon'))
-    nc.variables['z'][:,:] = zval
-    nc.createVariable('mask', 'float64', ('lat','lon'))
-    mask = ones((10,10),dtype='float64')
-    mask[3:,:] = 0.0
-    nc.variables['mask'][:,:] = mask
-    nc.createVariable('transposed_mask', 'float64', ('lon','lat'))
-    nc.variables['transposed_mask'][:,:] = mask.T
+    nc.variables['latitude'][:] = numpy.arange(10.0)
+    nc.variables['longitude'][:] = numpy.arange(10.0)
+    _add_field_and_mask(nc, zval)
     nc.close()
     # same thing but without the coordinate fields and mask
     nc = NetCDFFile(test_file_name2, 'w')
@@ -44,13 +49,24 @@ class TestNetCDFGrid(unittest.TestCase):
     nc.createVariable('z', 'float64', ('lat','lon'))
     nc.variables['z'][:,:] = zval
     nc.close()
+    # a version with 2d lat and lon fields
+    nc = NetCDFFile(test_file_name3, 'w')
+    nc.createDimension('lat', 10)
+    nc.createDimension('lon', 10)
+    nc.createVariable('latitude', 'float64', ('lon', 'lat')) # let's have a bit of fun and swap lon and lat
+    nc.createVariable('longitude', 'float64', ('lat','lon'))
+    nc.variables['latitude'][:] = numpy.tile(numpy.arange(10.0), (10,1))
+    nc.variables['longitude'][:] = numpy.tile(numpy.arange(10.0), (10,1))
+    _add_field_and_mask(nc, zval)
+    nc.close()
 
-  def tearDown(self):
+  @classmethod
+  def tearDownClass(self):
     # don't remove them either (see above) 
     return
     os.remove(test_file_name1)
     os.remove(test_file_name2)
-    pass
+    os.remove(test_file_name3)
 
   def _test_prepared_ncg(self, ncg, perm, coordinate_perm):
     interpolator = ncg.get_interpolator(field_name='z')
@@ -82,11 +98,16 @@ class TestNetCDFGrid(unittest.TestCase):
   # test a specific permutation of the calling sequence set_mask, set_ranges
   # and specific coordinate_perm (lat,lon) or (lon,lat)
   def _test_permutation(self, perm, coordinate_perm):
+    self._test_permutation_file(perm, coordinate_perm, test_file_name1, test_file_name2)
+    # same test but now using test .nc file 3 that has 2d coordinate fields
+    self._test_permutation_file(perm, coordinate_perm, test_file_name3, test_file_name2)
+  
+  def _test_permutation_file(self, perm, coordinate_perm, grid_file_name, field_only_file_name):
     # load the netcdf created in setup()
     if coordinate_perm==(0,1):
-      ncg = NetCDFGrid(test_file_name1, ('lat', 'lon'), ('latitude', 'longitude'))
+      ncg = NetCDFGrid(grid_file_name, ('lat', 'lon'), ('latitude', 'longitude'))
     else:
-      ncg = NetCDFGrid(test_file_name1, ('lon', 'lat'), ('longitude', 'latitude'))
+      ncg = NetCDFGrid(grid_file_name, ('lon', 'lat'), ('longitude', 'latitude'))
     # call the methods in the order given by perm
     for x in perm:
       if x=='mask':
@@ -107,7 +128,7 @@ class TestNetCDFGrid(unittest.TestCase):
     self._test_prepared_ncg(ncg, perm, coordinate_perm)
 
     # now try the same for the case where the field values are stored in a separate file
-    ncg2 = NetCDFGrid(test_file_name2, ncg)
+    ncg2 = NetCDFGrid(field_only_file_name, ncg)
     self._test_prepared_ncg(ncg2, perm, coordinate_perm)
 
 
