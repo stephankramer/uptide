@@ -6,7 +6,7 @@ _deg2rad = numpy.pi/180.
 
 class TidalNetCDFInterpolator(object):
   def __init__(self, tide, grid_file_name, dimensions, coordinate_fields,
-      ranges=None, mask=None):
+      ranges=None, mask=None, extrapolation_level=netcdf_reader.DEFAULT_EXTRAPOLATION_LEVEL):
     """Initiate a TidalNetCDFInterpolator. The specification of the names of the dimensions
     and coordinate_fields is the same as for the NetCDFInterpolator class, see its documentation.
     ranges and mask may be specified in a similar way to the NetCDFInterpolator class.
@@ -59,13 +59,13 @@ class TidalNetCDFInterpolator(object):
     if ranges is not None:
       self.set_ranges(ranges)
     if mask is not None:
-      self.set_mask(mask)
+      self.set_mask(mask, extrapolation_level=extrapolation_level)
 
   def set_ranges(self, ranges):
     self.ncg.set_ranges(ranges)
 
-  def set_mask(self, field_name):
-    self.ncg.set_mask(field_name)
+  def set_mask(self, field_name, extrapolation_level=netcdf_reader.DEFAULT_EXTRAPOLATION_LEVEL):
+    self.ncg.set_mask(field_name, extrapolation_level=extrapolation_level)
 
   def set_mask_from_fill_value(self, field_name, fill_value):
     self.ncg.set_mask_from_fill_value(field_name, fill_value)
@@ -146,7 +146,7 @@ class TidalNetCDFInterpolator(object):
       ncg = self.ncg
     else:
       # copies grid,mask and ranges information from self.ncg (that is read from the "grid" netcdf file)
-      ncg = netcdf_reader.NetCDFInterpolator(file_name, self.ncg)
+      ncg = netcdf_reader.NetCDFGrid(file_name, self.ncg)
     val = ncg.get_field(field_name)
 
     return val
@@ -156,15 +156,20 @@ class TidalNetCDFInterpolator(object):
     the tidal signal on all points of the NetCDF grid."""
     if not hasattr(self,"real_part"):
       raise Exception("Need to call load_amplitudes_and_phases() first!")
-    val = self.tide.from_complex_components(self.real_part, self.imag_part, t)
-    self.interpolator = self.ncg.get_interpolator_from_array(val)
+    self.val = self.tide.from_complex_components(self.real_part, self.imag_part, t)
+    self.interpolator = self.ncg.get_interpolator_from_array(self.val)
 
-  def get_val(self, x, allow_extrapolation=False):
+  def get_val(self, x, allow_extrapolation=None):
     """Interpolates the tidal signal in point x, computed in set_time(). The order 
     of the coordinates x is determined by the storage order in the NetCDF file."""
     if not hasattr(self,"interpolator"):
       raise Exception("Need to call set_time() first!")
-    return self.interpolator.get_val(x, allow_extrapolation)
+    if allow_extrapolation and self.ncg.extrapolation_level==0:
+      print "WARNING: allow_extrapolation argument is deprecated - use extrapolation_level argument in __init__() instead."
+      self.ncg.extrapolation_level=2
+      self.interpolator = self.ncg.get_interpolator_from_array(self.val)
+
+    return self.interpolator.get_val(x)
 
 def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
   tnci = TidalNetCDFInterpolator(tide, netcdf_file_name,
@@ -175,7 +180,7 @@ def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
   with field names such as M2amp, M2phase, etc. If present a field named "mask"
   with 0.0 for land and 1.0 for sea will also be recognized."""
   if "mask" in tnci.ncg.nc.variables:
-    tncg.set_mask("mask")
+    tnci.set_mask("mask")
 
   amplitude_field_names = []
   phase_field_names = []
@@ -196,7 +201,7 @@ def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
   tnci = TidalNetCDFInterpolator(tide, grid_file_name,
       ('nx','ny'), ('lon_z','lat_z'), ranges=ranges)
   if "mz" in tnci.ncg.nc.variables:
-    tncg.set_mask("mz")
+    tnci.set_mask("mz")
 
   # read the constituents available in the netCDF file
   nc = netcdf_reader.NetCDFFile(data_file_name, 'r')
