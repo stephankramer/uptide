@@ -3,6 +3,7 @@ import numpy
 import math
 import datetime
 from math import pi
+import collections
 
 day = 86400.
 julian_year = 365.25*day
@@ -24,9 +25,9 @@ astronomical_omegas = [
         2*pi/(1.03505*day),    # omega_1, cm:  mean lunar day (this is one more significant figure than in Pugh obtained from 1.0/0.9661369, necessary to match Schwiderski's frequencies)
         2*pi/(27.3217*day),     # omega_2, s:   sidereal month
         2*pi/(365.2422*day),     # omega_3, h:   tropical year
-        2*pi*3.0937e-4/day      # omega_4, p:   moon's perigee (8.85 julian years)
-        #-2*pi*1.471e-4/day,       # omega_5, N:   regression of moon's nodes
-        #2*pi/(20942*julian_year) # omega_6, pp:  perihelion
+        2*pi*3.0937e-4/day,      # omega_4, p:   moon's perigee (8.85 julian years)
+        -2*pi*1.471e-4/day,       # omega_5, N:   regression of moon's nodes
+        2*pi/(20942*julian_year) # omega_6, pp:  perihelion
        ]
 
 """longterm variation matrix, encoding formulae by 
@@ -66,25 +67,44 @@ lunar_doodson_numbers = {
   'Q1': [ 1.0, -2.0, 0.0, 1.0],
   'P1': [ 1.0, 1.0, -2.0, 0.0],
   'S1': [ 1.0, 1.0, -1.0, 0.0],
+  'J1': [ 1.0, 2.0, 0.0,  -1.0],
   # Semi-diurnal components:
   'M2': [ 2.0, 0.0, 0.0, 0.0],
   'S2': [ 2.0, 2.0, -2.0, 0.0],
   'N2': [ 2.0, -1.0, 0.0, 1.0],
   'K2': [ 2.0, 2.0, 0.0, 0.0],
   'L2': [ 2.0, 1.0, 0.0, -1.0],
+  'LAMBDA2': [ 2.0, 1.0, -2.0, 1.0],
+  'EPS2': [ 2.0, -3.0, 2.0, 1.0],
+  'MKS2': [ 2.0, 0.0, 2.0, 0.0],
+  'R2': [2.0, 2.0, -1.0, 0.0],
   # Higher-order (nonlinear) components, these are simply combinations of the above:
   '2N2': [ 2.0, -2.0, 0.0, 2.0],
   'MU2': [ 2.0, -2.0, 2.0, 0.0],
   'NU2': [ 2.0, -1.0, 2.0, -1.0],
-  'T2':  [ 2.0, 2.0, -3.0, 0.0], # what about its p' component?
-  'M4':  [ 4.0, 0.0, 0.0, 0.0],
+  'T2':  [ 2.0, 2.0, -3.0, 0.0],
   'MS4': [ 4.0, 2.0, -2.0, 0.0],
   'MN4': [ 4.0, -1.0, 0.0, 1.0],
+  'N4' : [ 4.0, -2.0, 0.0, 2.0],
+  'S4':  [ 4.0, 4.0, -4.0, 0.0],
   # long period species:
-  'Mf': [ 0.0, 2.0, 0.0, 0.0],
-  'Mm': [ 0.0, 1.0, 0.0, -1.0],
-  'Ssa': [ 0.0, 0.0, 2.0, 0.0],
-  'Sa': [ 0.0, 0.0, 1.0, 0.0]}
+  'MF': [ 0.0, 2.0, 0.0, 0.0],
+  'MSF': [ 0.0, 2.0, -2.0, 0.0],
+  'MM': [ 0.0, 1.0, 0.0, -1.0],
+  'MTM': [ 0.0, 3.0, 0.0, -1.0], # name according to FES, same as MFM
+  'MFM': [ 0.0, 3.0, 0.0, -1.0], # this is the name according to UKHO
+  'MSQM': [ 0.0, 4.0, -2.0, 0.0],
+  'SSA': [ 0.0, 0.0, 2.0, 0.0],
+  'SA': [ 0.0, 0.0, 1.0, 0.0]}
+# add M3-12
+for n in range(3,13):
+  lunar_doodson_numbers['M'+str(n)] = [n*1.0, 0.0, 0.0, 0.0]
+
+# add two columns for N and p' dependency
+for constituent,doodson_numbers in lunar_doodson_numbers.iteritems():
+  lunar_doodson_numbers[constituent] = doodson_numbers + [0.0, 0.0]
+lunar_doodson_numbers['R2'][-1] = -1.0
+lunar_doodson_numbers['T2'][-1] = 1.0
 
 # now we can compute the frequencies of the tidal constituents
 omega={}
@@ -103,13 +123,13 @@ for constituent,doodson_numbers in lunar_doodson_numbers.items():
   solar_doodson_numbers[constituent][1] -= doodson_numbers[0] # -s
   solar_doodson_numbers[constituent][2] += doodson_numbers[0] # +h
 
-tidal_phase_origin={
-    'Z0':0., 
-    'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':90.,
-    'M2':0., 'S2':0., 'N2':0., 'K2':0., 'L2':180., 
-    'Mf':0., 'Mm':0., 'Ssa':0., 'Sa':0.,
-    '2N2':0., 'MU2':0., 'NU2':0., 'T2':0.,
-    'M4':0., 'MS4':0., 'MN4':0.}
+# a defaultdict which returns float() (which gives 0.0) by default
+tidal_phase_origin = collections.defaultdict(float)
+tidal_phase_origin.update({
+    # the origins of the diurnal constituents corresponds to what is given in the UKHO specificaiton
+    # for S1 and K1 there are multiple different entries - in that case we try to correspond to FES and OTPS
+    'J1': 90., 'K1':90., 'O1':-90., 'Q1':-90., 'P1':-90., 'S1':180.,
+    'L2':180., 'LAMBDA2':180., 'R2':180., 'M3':180.})
 
 # compute the astronomical arguments H, s, h, p'
 def astronomical_argument(time):
@@ -131,45 +151,77 @@ def astronomical_argument(time):
     return H,s,h,p,N,pp
 
 nodal_correction_f0 = {
-  'Mf': 1.043, 
+  'MF': 1.043, 
+  'MFM': 1.043, 
+  'MTM': 1.043, 
+  'MSQM': 1.043,
   'O1': 1.009,
   'Q1': 1.009,
+  'J1': 0.996, # we take the average of min and max from Schureman's table
   'K1': 1.006,
-  'K2': 1.024}
+  'K2': 1.024,
+  'MKS2': 1.024} # MKS2=M2+K2-S2
 nodal_correction_f1 = {
-  'Mm': -0.130,
-  'Mf': +0.414,
+  'MM': -0.130,
+  'MF': +0.414,
+  'MSF': -0.037, # f is the same M2 according to UKHO
+  'MFM': +0.414,
+  'MTM': +0.414,
+  'MSQM': +0.414,
   'O1': +0.187,
   'Q1': +0.187,
+  'J1': +0.169, # we take half the difference between max and min from Schureman's table
   'K1': +0.115,
   'M2': -0.037,
   'N2': -0.037,
-  'K2': +0.286}
+  'L2': -0.037,
+  'K2': +0.286,
+  'MKS2': -0.037+0.286, # MKS2=M2+K2-S2
+  }
 nodal_correction_u1 = {
-  'Mf': -0.41364303,
+  'MF': -0.41364303,
+  'MSF': -0.03665191, # MSF=S2-M2 so u is - of M2 according to UKHO, but + of U2 according to FES!!
+  'MFM': -0.41364303,
+  'MTM': -0.41364303,
+  'MSQM': -0.41364303,
   'O1':  0.18849556,
   'Q1':  0.18849556,
+  'J1':  -12.94*deg2rad, # first term of UKHO: u = - 12.94 sin N + 1.34 sin 2N - 0.19 sin 3N
   'K1': -0.1553343,
   'M2': -0.03665191,
   'N2': -0.03665191,
-  'K2': -0.30892328}
-nodal_correction_f2={}
-# nodal corrections for M4, MN4, MS4
-for comp in ('M2','N2','S2'):
-  if comp[0]=='M':
-    name='M4'
-  else:
-    name='M'+comp[0]+'4'
-  nodal_correction_f0[name] = nodal_correction_f0.get('M2',1.0) * nodal_correction_f0.get(comp, 1.0)
-  nodal_correction_f1[name] = (nodal_correction_f0.get('M2',1.0) * nodal_correction_f1.get(comp, 0.0) +
-            nodal_correction_f1.get('M2',0.0) * nodal_correction_f0.get(comp, 1.0))
-  nodal_correction_f2[name] = nodal_correction_f1.get('M2',0.0) * nodal_correction_f1.get(comp, 0.0)
-  nodal_correction_u1[name] = nodal_correction_u1.get('M2',0.0) + nodal_correction_u1.get(comp, 0.0)
+  'L2': -0.03665191,
+  'K2': -0.30892328,
+  'MKS2': -0.03665191-0.30892328, # MKS2=M2+K2-S2
+  }
+
+# nodal corrections for MN4, MS4
+m2f0 = nodal_correction_f0.get('M2', 1.0)
+m2f1 = nodal_correction_f1.get('M2', 0.0)
+m2u1 = nodal_correction_u1.get('M2', 0.0)
+for comp in ('N2','S2'):
+  name='M'+comp[0]+'4'
+  nodal_correction_f0[name] =  m2f0 * nodal_correction_f0.get(comp, 1.0)
+  nodal_correction_f1[name] = (m2f0 * nodal_correction_f1.get(comp, 0.0) +
+            m2f1 * nodal_correction_f0.get(comp, 1.0))
+  nodal_correction_u1[name] = m2u1 + nodal_correction_u1.get(comp, 0.0)
+
+# nodal corrections for M3-12
+for n in range(3,13):
+  name='M'+str(n)
+  nodal_correction_f0[name] = m2f0**(n/2.)
+  nodal_correction_f1[name] = (m2f1/m2f0)*n/2.
+  nodal_correction_u1[name] = m2u1*n/2.
+# nodal correction for N4=M4
+nodal_correction_f0['N4'] = nodal_correction_f0['M4']
+nodal_correction_f1['N4'] = nodal_correction_f1['M4']
+nodal_correction_u1['N4'] = nodal_correction_u1['M4']
+
 # nodal corrections that are the same as M2 and N2 (see Pugh table 4.3):
-for comp in ('2N2', 'MU2', 'NU2', 'T2'):
+# (L2 and EPS2 according to UKHO, LAMBDA2 isn't correct here)
+for comp in ('2N2', 'MU2', 'NU2', 'N2', 'L2', 'LAMBDA2', 'EPS2'):
   nodal_correction_f0[comp] = nodal_correction_f0.get('M2', 1.0)
   nodal_correction_f1[comp] = nodal_correction_f1.get('M2', 0.0)
-  nodal_correction_f2[comp] = nodal_correction_f2.get('M2', 0.0)
   nodal_correction_u1[comp] = nodal_correction_u1.get('M2', 0.0)
 
 def nodal_corrections(constituents, N, pp):
@@ -183,17 +235,16 @@ def nodal_corrections(constituents, N, pp):
     # amplitude corrections:
     f0 = nodal_correction_f0.get(constituent, 1.0)
     f1 = nodal_correction_f1.get(constituent, 0.0)
-    f2 = nodal_correction_f2.get(constituent, 0.0)
-    f.append(f0 + f1*cosN + f2*cosNsq)
+    f.append(f0 + f1*cosN)
     # phase corrections:
     u.append(nodal_correction_u1.get(constituent, 0.0)*sinN)
 
   return numpy.array(f), numpy.array(u)
 
 def tidal_arguments(constituents, time):
-    H,s,h,p,N,pp = astronomical_argument(time)
+    astro = astronomical_argument(time)
     arguments = []
     for constituent in constituents:
-      arguments.append( (numpy.dot(solar_doodson_numbers[constituent], [H,s,h,p]) 
+      arguments.append( (numpy.dot(solar_doodson_numbers[constituent], astro) 
         + tidal_phase_origin[constituent]) * deg2rad )
     return numpy.array(arguments)

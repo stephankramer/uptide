@@ -234,10 +234,10 @@ class NetCDFInterpolator(object):
 
       for dimension,field_name in zip(dimensions, coordinate_fields):
         N = self.nc.dimensions[dimension]
-        self.shape.append(N)
         if not isinstance(N, int):
           # let's guess it's a netCDF4.Dimension, so we should ask for its len (yuck)
           N = len(N)
+        self.shape.append(N)
         val = self.nc.variables[field_name]
         if len(val.shape)==1:
           self.origin.append(val[0])
@@ -342,7 +342,7 @@ class NetCDFInterpolator(object):
           self.mask = mask.T
         else:
           # requires a copy (and complete read from disk)
-          self.mask = numpy.transpose(mask)
+          self.mask = numpy.transpose(mask[:,:])
       self.interpolator.set_mask(self.mask)
 
   def set_mask_from_fill_value(self, field_name, fill_value):
@@ -406,7 +406,7 @@ class NetCDFInterpolator(object):
           self.mask = self.mask.T
         else:
           # requires a copy (and complete read from disk)
-          self.mask = numpy.transpose(self.mask)
+          self.mask = numpy.transpose(self.mask[:,:])
     self.dim_order = dim_order
 
     origin = [self.origin[d] for d in self.dim_order]

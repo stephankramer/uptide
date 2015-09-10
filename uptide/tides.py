@@ -2,7 +2,6 @@
 import tidal
 import datetime
 import numpy
-import math
 
 class Tides(object):
 
@@ -13,12 +12,16 @@ class Tides(object):
     all known constituents are included. The used constituents can be queried
     from the constituents attribute."""
     if constituents is not None:
-      self.constituents = constituents
+      self.constituents = [c.upper() for c in constituents]
     else:
       self.constituents = tidal.omega.keys()
 
-    self.omega = numpy.array(
+    try:
+      self.omega = numpy.array(
         [tidal.omega[constituent] for constituent in self.constituents])
+    except KeyError:
+      print "*** Unsupported constituent(s) in uptide: ", set(self.constituents)-set(tidal.omega.keys())
+      raise
     self.phi = None # Greenwich argument
     self.f = None # nodal amplitude correction
     self.u = None # nodal phase correction
