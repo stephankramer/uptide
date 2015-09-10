@@ -342,7 +342,7 @@ class NetCDFInterpolator(object):
           self.mask = mask.T
         else:
           # requires a copy (and complete read from disk)
-          self.mask = numpy.transpose(mask)
+          self.mask = numpy.transpose(mask[:,:])
       self.interpolator.set_mask(self.mask)
 
   def set_mask_from_fill_value(self, field_name, fill_value):
@@ -406,7 +406,7 @@ class NetCDFInterpolator(object):
           self.mask = self.mask.T
         else:
           # requires a copy (and complete read from disk)
-          self.mask = numpy.transpose(self.mask)
+          self.mask = numpy.transpose(self.mask[:,:])
     self.dim_order = dim_order
 
     origin = [self.origin[d] for d in self.dim_order]
