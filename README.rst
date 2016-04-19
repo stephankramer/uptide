@@ -39,8 +39,8 @@ Functionality
 -  Read the phases and amplitudes on a regular Cartesian grid from a
    netCDF file and interpolate the tidal signal at any arbitrary point
    in the domain, for any date and time. Phases and amplitudes can be
-   read directly from netCDF files as provided by the [FES2004][1] and
-   [OTPSnc][2] global and regional tidal data bases.
+   read directly from netCDF files as provided by the [FES2004][1],
+   [FES2012][2] and [OTPSnc][3] global and regional tidal data bases.
    [1]:ftp://ftp.legos.obs-mip.fr/pub/soa/maree/tide\_model/global\_solution/fes2004/
-   [2]:http://volkov.oce.orst.edu/tides/otps.html
-
+   [2]:http://www.aviso.oceanobs.com/en/data/products/auxiliary-products/global-tide-fes.html
+   [3]:http://volkov.oce.orst.edu/tides/otps.html
