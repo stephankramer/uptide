@@ -45,7 +45,7 @@ Schwiderski_matrix = numpy.array([
        # phase speeds degree/julian_century - should be equal to omega above
        [481267.88314137, 36000.768930485, 4069.0340329575, -1934.14212, 1.7189999999999999],
        # quadratic coefficients
-       [-0.001133, 3.03e-4, -0.01325, 0.00216, 0.00036],
+       [-0.001133, 3.03e-4, -0.010325, 0.00216, 0.00036],
        # cubic coefficients
        [1.9e-6, 0.0, -1.2e-5, 0.0, 0.0 ]]).T
 

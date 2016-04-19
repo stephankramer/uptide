@@ -16,7 +16,7 @@ class TestTidal(unittest.TestCase):
          (15.5125,
            365118.84020756715,
            27571.821754149107,
-           3419.050174721317,
+           3419.0518557573282,
            -1207.0853423332171,
            282.52421802604846) ):
       self.assertAlmostEqual(x,y)
@@ -34,7 +34,7 @@ class TestTidal(unittest.TestCase):
     H,s,h,p,N,pp = self.HshpNpp
     # pick a lunar, solar and overtide
     phi = ut.tidal_arguments(['N2', 'S2', 'M4'], self.date)
-    for x,y in zip(phi, [-18094.924456049303, 0.54148840043124069, -23564.144432407946]):
+    for x,y in zip(phi, [-18094.924426709691, 0.54148840043124069, -23564.144432407946]):
       self.assertAlmostEqual(x,y)
 
   def test_omegas(self):
