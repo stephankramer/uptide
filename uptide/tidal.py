@@ -135,7 +135,14 @@ tidal_phase_origin.update({
 def astronomical_argument(time):
     # time should be specified as a datetime object
     # compute the timedelta since 1975-1-1
-    td = time-datetime.datetime(1975,1,1,0,0)
+    if time.tzinfo is None:
+        # with naive datetimes without tzinfo, the assumption is everything is in UTC
+        dt0 = datetime.datetime(1975,1,1,0,0)
+    else:
+        # only pull in this dependency when tzinfo is supplied
+        import pytz
+        dt0 = pytz.utc.localize(datetime.datetime(1975,1,1,0,0))
+    td = time - dt0
     # don't use total_seconds() as that's python2.7
     D = td.days + td.seconds/day + 1.0 # days since 1975-1-1 counting from 1
     # Note that in TABLE 1 of Schwiderski there is no H

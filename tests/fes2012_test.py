@@ -3,6 +3,9 @@ import uptide.tidal_netcdf
 import datetime
 from numpy import *
 import os
+import pytest
+
+pytest.importorskip('uptide.fes2012')
 
 fes_dir='/data/packages/fes2012'
 fes_dir='/home/skramer/data/fes2012'

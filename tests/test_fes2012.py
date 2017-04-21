@@ -1,9 +1,9 @@
 import unittest
 import os
-try:
-  import uptide.fes2012
-except ImportError:
-  pass
+import pytest
+
+pytest.importorskip('uptide.fes2012')
+import uptide.fes2012
 
 try:
   fes_data = os.environ['FES_DATA']
