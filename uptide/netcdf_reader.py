@@ -374,7 +374,7 @@ class NetCDFInterpolator(object):
     else:
       raise NetCDFInterpolatorError("Field to extract mask from, should have 2 or 3 dimensions")
 
-    mask = numpy.where(val==fill_value,0.,1.)
+    mask = numpy.logical_not(numpy.isclose(val, fill_value))
     self._set_mask_and_dim_order(mask, dim_order)
 
   def set_field(self, field_name):
