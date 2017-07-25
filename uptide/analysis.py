@@ -54,5 +54,5 @@ def harmonic_analysis(tide, x, t):
   i.o.w. A_n = a_n f_n e^(i (-g+phi+u))"""
   a = numpy.abs(A)/tide.f
   arg = numpy.angle(A)
-  g = tide.phi+tide.u-arg
+  g = (tide.phi+tide.u-arg) % (2*numpy.pi)
   return a, g
