@@ -1,3 +1,4 @@
+from __future__ import print_function
 import unittest
 import uptide
 import datetime
@@ -47,7 +48,7 @@ def test_compute_nodal_corrections(tide):
               0.        , -0.06703588]):
       assert_almost_equal(x,y)
     # test amplitude corrections
-    print tide.f
+    print(tide.f)
     for x,y in zip(tide.f,
             [ 1.08466026,  1.        ,  1.13971568,  0.94740196,  1.        ,  0.98502979, 
               0.97005958,  1.05252903,  1.21050452,  0.98502979,  0.98502979,  0.98502979,

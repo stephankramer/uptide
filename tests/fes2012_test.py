@@ -1,3 +1,4 @@
+from __future__ import print_function
 import uptide
 import uptide.tidal_netcdf
 import datetime
@@ -44,4 +45,4 @@ f.close()
 os.system('cd {}/examples_hacked/; ./fes_slev > test.txt'.format(fes_dir))
 fes = loadtxt(fes_dir+'/examples_hacked/test.txt', skiprows=1, usecols=(7,))
 err = abs(fes-ut).max()
-print constituents, ':',  err, err/max(abs(fes))
+print(constituents, ':',  err, err/max(abs(fes)))

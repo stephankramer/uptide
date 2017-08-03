@@ -1,5 +1,6 @@
 """Implements the Tides class"""
-import tidal
+from __future__ import print_function
+import uptide.tidal as tidal
 import datetime
 import numpy
 
@@ -14,13 +15,13 @@ class Tides(object):
     if constituents is not None:
       self.constituents = [c.upper() for c in constituents]
     else:
-      self.constituents = tidal.omega.keys()
+      self.constituents = list(tidal.omega.keys())
 
     try:
       self.omega = numpy.array(
         [tidal.omega[constituent] for constituent in self.constituents])
     except KeyError:
-      print "*** Unsupported constituent(s) in uptide: ", set(self.constituents)-set(tidal.omega.keys())
+      print("*** Unsupported constituent(s) in uptide: ", set(self.constituents)-set(tidal.omega.keys()))
       raise
     self.phi = None # Greenwich argument
     self.f = None # nodal amplitude correction

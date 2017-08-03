@@ -1,5 +1,5 @@
 import numpy
-import netcdf_reader
+import uptide.netcdf_reader as netcdf_reader
 import itertools
 import os.path
 

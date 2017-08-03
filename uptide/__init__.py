@@ -18,5 +18,5 @@ Python package for tidal computations. Main components:
 
 """
 
-from tides import Tides
-from analysis import harmonic_analysis
+from uptide.tides import Tides
+from .analysis import harmonic_analysis

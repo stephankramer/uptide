@@ -1,3 +1,4 @@
+from __future__ import print_function
 import uptide
 import uptide.tidal_netcdf
 import os.path
@@ -41,9 +42,9 @@ vals_t = numpy.array(vals_t).T
 
 reference = numpy.loadtxt(reference_file_name)
 err =  numpy.abs(reference-vals_t).max()
-print "err = ", err
+print("err = ", err)
 if err>1e-3:
-    print "Error too large"
+    print("Error too large")
     sys.exit(1)
 else:
-    print "Success!"
+    print("Success!")

@@ -101,7 +101,7 @@ for n in range(3,13):
   lunar_doodson_numbers['M'+str(n)] = [n*1.0, 0.0, 0.0, 0.0]
 
 # add two columns for N and p' dependency
-for constituent,doodson_numbers in lunar_doodson_numbers.iteritems():
+for constituent,doodson_numbers in lunar_doodson_numbers.items():
   lunar_doodson_numbers[constituent] = doodson_numbers + [0.0, 0.0]
 lunar_doodson_numbers['R2'][-1] = -1.0
 lunar_doodson_numbers['T2'][-1] = 1.0
