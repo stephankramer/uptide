@@ -214,7 +214,7 @@ def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
   # constituents available in the netCDF file
   constituents = tnci.nci.nc.variables['con'][:]
   # dict that maps constituent names to indices
-  constituent_index = dict(((constituent.tostring().strip(' \x00').lower(),i) for i,constituent in enumerate(constituents)))
+  constituent_index = dict(((constituent.tostring().decode().strip(' \x00').lower(),i) for i,constituent in enumerate(constituents)))
   # the indices of the requested constituents
   components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
   tnci.load_complex_components_block(data_file_name, 'hRe', components,
