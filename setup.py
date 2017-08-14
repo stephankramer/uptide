@@ -21,14 +21,14 @@ if '--with-fes' in script_args:
     include_dirs=include_dirs)]
 
 setup(name='uptide',
-      version='0.2',
+      version='0.3',
       author='Stephan Kramer',
       author_email='s.kramer@imperial.ac.uk',
-      description="""uptide is a python package for tidal calculations. It computes the tidal
-free surface height or velocities from the amplitudes and phases of the tidal
-constituents. These amplitudes and phases can be read from global tidal
-solutions such as OSU/OTIS or FES2012. Some
-limited functionality for tidal harmonic analysis is also available.""",
+      description="uptide is a python package for tidal calculations. It computes the tidal " +
+"free surface height or velocities from the amplitudes and phases of the tidal " +
+"constituents. These amplitudes and phases can be read from global tidal " +
+"solutions such as OSU/OTIS or FES2012. Some " +
+"limited functionality for tidal harmonic analysis is also available.",
       url='https://github.com/stephankramer/uptide',
       packages = ['uptide'],
       keywords = ['tides', 'tidal', 'harmonic analysis'],
