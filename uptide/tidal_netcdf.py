@@ -235,7 +235,7 @@ def FESTidalInterpolator(tide, fes_file_name, ranges=None):
   # constituents available in the netCDF file
   constituents = tnci.nci.nc.variables['spectrum'][:]
   # dict that maps constituent names to indices
-  constituent_index = dict(((constituent.tostring().strip(' \x00').lower(),i) for i,constituent in enumerate(constituents)))
+  constituent_index = dict(((constituent.tostring().decode("utf-8").strip(' \x00').lower(),i) for i,constituent in enumerate(constituents)))
   # the indices of the requested constituents
   components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
   tnci.load_amplitudes_and_phases_block(fes_file_name, 'Ha', components,
