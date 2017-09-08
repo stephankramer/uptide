@@ -241,10 +241,11 @@ class NetCDFInterpolator(object):
         val = self.nc.variables[field_name]
         if len(val.shape)==1:
           self.origin.append(val[0])
-          self.delta.append((val[-1]-self.origin[-1])/(N-1))
+          self.delta.append(numpy.diff(val).mean())
         elif len(val.shape)==2:
           self.origin.append(val[0,0])
-          self.delta.append((val[-1,-1]-self.origin[-1])/(N-1))
+          self.delta.append(max(numpy.diff(val, axis=0).mean(),
+                                numpy.diff(val, axis=1).mean()))
         else:
           raise NetCDFInterpolatorError("Unrecognized shape of coordinate field")
 
