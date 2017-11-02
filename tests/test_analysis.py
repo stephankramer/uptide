@@ -26,7 +26,15 @@ class TestAnalysis(unittest.TestCase):
       plot(trange, x)
       plot(trange, y)
       show()
-    self.assertAlmostEqual(numpy.linalg.norm(x-y), 0.0)
+    self.assertAlmostEqual(numpy.linalg.norm(x-y), 0.0, 5)
+
+    def test_error_analysis(self):
+        N = len(self.tide.constituents)
+        a = numpy.random.random_sample(N)
+        p = numpy.random.random_sample(N)*2*math.pi
+        # error to a random set of number to itself
+        d = ua.error_analysis(self.tide, a, p, a, p)
+        self.assertAlmostEqual(d, 0.0)
 
 if __name__ == '__main__':
       unittest.main()
