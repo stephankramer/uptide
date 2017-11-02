@@ -57,7 +57,7 @@ def harmonic_analysis(tide, x, t):
   g = (tide.phi+tide.u-arg) % (2*numpy.pi)
   return a, g
 
-def error_analysis(tide, mod_amp, mod_phase, obs_amp, obs_phase):
+def error_analysis(mod_amp, mod_phase, obs_amp, obs_phase):
     """Perform error analysis of model and observations (or two models) based
     on amplitudes and phases of components. The test is based on 
     Cummins, Patrick F., and Lie-Yauw Oey. 1997. Simulation of Barotropic 
@@ -72,22 +72,17 @@ def error_analysis(tide, mod_amp, mod_phase, obs_amp, obs_phase):
 
     Input:
         tide - tide object
-        mod_amp - list of floats. Model amplitudes in the order of tide.constituents
-        mod_phase - list of floats. Model phases in order of tides.constiuents
-        obs_amp - list of floats. Observed amplitudes in the order of tide.constituents
-        obs_phase - list of floats. Observed phases in order of tide.constiuents
+        mod_amp - numpy array. Model amplitudes in the order of tide.constituents
+        mod_phase - numpy array. Model phases in order of tides.constiuents
+        obs_amp - numpy array. Observed amplitudes in the order of tide.constituents
+        obs_phase - numpy array. Observed phases in order of tide.constiuents
 
     Returns list of floats for D_n for each tidal constituent in tide.constiuents
     """
-    
-    D_n = []
-    i = 0
-    for cons in tide.constiuents:
-        D = 0.5 * ( (mod_amp[i]*mod_amp[i] + obs_amp[i]*obs_amp[i]) -
-                    obs_amp*mod_amp * numpy.cos(obs_phase - mod_phase))
-        D = numpy.sqrt(D)
-        D_n.append(D)
-        i += 1
+    # seperating this out to make it easier to read and understand...See formula above.
+    D = 0.5 * ((mod_amp * mod_amp) + (obs_amp * obs_amp))
+    D = D - (obs_amp*mod_amp * numpy.cos(obs_phase - mod_phase))
+    D_n = numpy.sqrt(D)
 
     return D_n
 
