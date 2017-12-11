@@ -56,3 +56,34 @@ def harmonic_analysis(tide, x, t):
   arg = numpy.angle(A)
   g = (tide.phi+tide.u-arg) % (2*numpy.pi)
   return a, g
+
+def error_analysis(mod_amp, mod_phase, obs_amp, obs_phase):
+    """Perform error analysis of model and observations (or two models) based
+    on amplitudes and phases of components. The test is based on 
+    Cummins, Patrick F., and Lie-Yauw Oey. 1997. Simulation of Barotropic 
+    and Baroclinic Tides off Northern British Columbia.
+    Journal of Physical Oceanography 27(5). 762-81.
+    The formula is roughly:
+    D_n = sqrt(Ave(eta_o - eta_m)^2))
+        = sqrt(0.5(h_o^2 + h_m^2) - h_o h_m cos(phi_o - phi_m))
+    where h is amplitude, phi is phase. _o is observation, _m is model.
+    eta is FS height, and the average is over a tidal period. D_n give
+    the RMS error of the FS height.
+
+    Input:
+        tide - tide object
+        mod_amp - numpy array. Model amplitudes in the order of tide.constituents
+        mod_phase - numpy array. Model phases in order of tides.constiuents
+        obs_amp - numpy array. Observed amplitudes in the order of tide.constituents
+        obs_phase - numpy array. Observed phases in order of tide.constiuents
+
+    Returns list of floats for D_n for each tidal constituent in tide.constiuents
+    """
+    # seperating this out to make it easier to read and understand...See formula above.
+    D = 0.5 * ((mod_amp * mod_amp) + (obs_amp * obs_amp))
+    D = D - (obs_amp*mod_amp * numpy.cos(obs_phase - mod_phase))
+    D_n = numpy.sqrt(D)
+
+    return D_n
+
+
