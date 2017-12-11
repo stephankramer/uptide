@@ -221,6 +221,31 @@ def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
       data_file_name, 'hIm', components)
   return tnci
 
+def OTPSncTidalComponentInterpolator(tide, grid_file_name, data_file_name, grid_field_name, field_name,
+    ranges=None):
+  """Create a TidalNetCDFInterpolator from OTPSnc NetCDF files, where
+  the grid is stored in a separate file (with "lon_X", "lat_X" and "mX"
+  fields), where X is velocity component u or v. The actual phase and amplitude data is read 
+  from a seperate file with Ya and Yp fields, where Y=u,v, U, V (small caps is speeds, CAPS gives
+  transports."""
+  # read grid, ranges and mask from grid netCDF
+  tnci = TidalNetCDFInterpolator(tide, grid_file_name,
+      ('nx','ny'), ('lon_{}'.format(grid_field_name),'lat_{}'.format(grid_field_name)), ranges=ranges)
+  mask_name = 'm{}'.format(grid_field_name)
+  if mask_name in tnci.nci.nc.variables:
+    tnci.set_mask(mask_name)
+  # now swap its nci (keeping all above information) with one for the data file
+  tnci.nci = netcdf_reader.NetCDFInterpolator(data_file_name, tnci.nci)
+
+  # constituents available in the netCDF file
+  constituents = tnci.nci.nc.variables['con'][:]
+  # dict that maps constituent names to indices
+  constituent_index = dict(((constituent.tostring().decode().strip(' \x00').lower(),i) for i,constituent in enumerate(constituents)))
+  # the indices of the requested constituents
+  components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
+  tnci.load_amplitudes_and_phases_block(data_file_name, '{}a'.format(field_name), components,
+      data_file_name, '{}p'.format(field_name), components)
+  return tnci
   
 def FESTidalInterpolator(tide, fes_file_name, ranges=None):
   # read grid, ranges and mask from grid netCDF
