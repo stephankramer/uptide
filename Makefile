@@ -11,3 +11,9 @@ endif
 
 test: $(TEST_REQUIREMENTS)
 	py.test tests/
+
+lint:
+	@echo "    Linting uptide codebase"
+	@python -m flake8 uptide
+	@echo "    Linting uptide test suite"
+	@python -m flake8 tests
