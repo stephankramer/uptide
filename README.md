@@ -1,33 +1,34 @@
 About uptide
 ==============
-uptide is a python package for tidal calculations. It computes the tidal
-free surface height or velocities from the amplitudes and phases of the tidal
+uptide is a python package for tidal calculations. It computes tidal
+free surface heights or velocities from the amplitudes and phases of the tidal
 constituents. These amplitudes and phases can be read from global tidal
-solutions such as [OSU/OTIS](http://volkov.oce.orst.edu/tides/) or [FES2012](http://www.aviso.oceanobs.com/en/data/products/auxiliary-products/global-tide-fes.html).
+solutions such as [TPXO](http://volkov.oce.orst.edu/tides/) or [FES2014](https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html).
 They can be read directly from the netCDF files provided by these sources. Some
 limited functionality for tidal harmonic analysis is also available,
 
 Prerequisites
 ---------------
-* python 2.6 or 2.7 (not tested for python 3)
+* python 3 or 2.7 (deprecated)
 * numpy
-* to read from netCDF sources: python netCDF support. This can be either:
-[netCDF4](http://code.google.com/p/netcdf4-python/), or
-[Scientific.IO.NetCDF](http://dirac.cnrs-orleans.fr/plone/software/scientificpython/),
-or [scipy.io.netcdf](http://www.scipy.org). netCDF4 is the recommended package
-and is required for FES2012 that comes in netcdf4 format. To install:
+* to read from netCDF sources: python netCDF support. The
+[netCDF4](https://github.com/Unidata/netcdf4-python) package is 
+recommended. To install:
+```
+sudo CC=mpicc pip install netcdf4
+```
 
-  sudo CC=mpicc pip install netcdf4
-
-For Ubuntu Precise, see this
-[bug](http://code.google.com/p/netcdf4-python/issues/detail?id=194). So there,
-either use Scientific (sudo apt-get install python-scientific), or install a 
-newer version of netcdf4 (>=4.1.2).
+or use the python-netcdf4 package on Ubuntu and Debian.
+* for FES2014 support: the [FES package](https://bitbucket.org/cnes_aviso/fes). To install:
+```
+pip install git+https://bitbucket.org/cnes_aviso/fes.git#subdirectory=python
+```
 
 Functionality
 ---------------
 * Given the phase and amplitudes of the harmonic constituents (M2, S2, etc.) reconstruct the tidal signal at an arbitrary date and time (including nodal corrections).
-* Read the phases and amplitudes on a regular Cartesian grid from a netCDF file and interpolate the tidal signal at any arbitrary point in the domain, for any date and time. Phases and amplitudes can be read directly from netCDF files as provided by the [FES2004][1], [FES2012][2] and [OTPSnc][3] global and regional tidal data bases.
-[1]:ftp://ftp.legos.obs-mip.fr/pub/soa/maree/tide_model/global_solution/fes2004/
-[2]:http://www.aviso.oceanobs.com/en/data/products/auxiliary-products/global-tide-fes.html
-[3]:http://volkov.oce.orst.edu/tides/otps.html
+* Read the phases and amplitudes on a regular Cartesian grid from a netCDF file and interpolate the tidal signal at any arbitrary point in the domain, for any date and time. Phases and amplitudes can be read directly from netCDF files as provided by the [FES2004][1], [FES2014][2] and [TPXO][3] global and regional tidal data bases.
+
+[1]: ftp://ftp.legos.obs-mip.fr/pub/soa/maree/tide_model/global_solution/fes2004/
+[2]: https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html
+[3]: http://volkov.oce.orst.edu/tides/otps.html
