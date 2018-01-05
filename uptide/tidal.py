@@ -68,6 +68,7 @@ lunar_doodson_numbers = {
     'P1': [1.0, 1.0, -2.0, 0.0],
     'S1': [1.0, 1.0, -1.0, 0.0],
     'J1': [1.0, 2.0, 0.0, -1.0],
+    'M1': [1.0, 0.0, 0.0, 0.0],
     # Semi-diurnal components:
     'M2': [2.0, 0.0, 0.0, 0.0],
     'S2': [2.0, 2.0, -2.0, 0.0],
@@ -76,13 +77,14 @@ lunar_doodson_numbers = {
     'L2': [2.0, 1.0, 0.0, -1.0],
     'LAMBDA2': [2.0, 1.0, -2.0, 1.0],
     'EPS2': [2.0, -3.0, 2.0, 1.0],
-    'MKS2': [2.0, 0.0, 2.0, 0.0],
     'R2': [2.0, 2.0, -1.0, 0.0],
-    # Higher-order (nonlinear) components, these are simply combinations of the above:
     '2N2': [2.0, -2.0, 0.0, 2.0],
     'MU2': [2.0, -2.0, 2.0, 0.0],
     'NU2': [2.0, -1.0, 2.0, -1.0],
     'T2': [2.0, 2.0, -3.0, 0.0],
+    'ETA2': [2.0, 3.0, 0.0, -1.0],
+    # Higher-order (nonlinear) components, these are simply combinations of the above:
+    'MKS2': [2.0, 0.0, 2.0, 0.0],
     'MS4': [4.0, 2.0, -2.0, 0.0],
     'MN4': [4.0, -1.0, 0.0, 1.0],
     'N4': [4.0, -2.0, 0.0, 2.0],
@@ -93,6 +95,8 @@ lunar_doodson_numbers = {
     'MM': [0.0, 1.0, 0.0, -1.0],
     'MTM': [0.0, 3.0, 0.0, -1.0],  # name according to FES, same as MFM
     'MFM': [0.0, 3.0, 0.0, -1.0],  # this is the name according to UKHO
+    'MT': [0.0, 3.0, 0.0, -1.0],   # same again according to Kantha and Clayson
+    'MSM': [0.0, 1.0, -2.0, 1.0],  # from K&C
     'MSQM': [0.0, 4.0, -2.0, 0.0],
     'SSA': [0.0, 0.0, 2.0, 0.0],
     'SA': [0.0, 0.0, 1.0, 0.0]}
@@ -160,22 +164,26 @@ def astronomical_argument(time):
 
 
 nodal_correction_f0 = {
-    'MF': 1.043,
-    'MFM': 1.043,
+    'MF': 1.043,  # UKHO thinks this should be 1.084?!
+    'MFM': 1.043,   # same as Mf according to Schureman, but same as Mm according to UKHO
     'MTM': 1.043,
+    'MT': 1.043,
     'MSQM': 1.043,
     'O1': 1.009,
     'Q1': 1.009,
     'J1': 0.996,  # we take the average of min and max from Schureman's table
     'K1': 1.006,
     'K2': 1.024,
+    'ETA2': 1.09211766765308,  # using expansion in cos(N) for UKHO formula
     'MKS2': 1.024}  # MKS2=M2+K2-S2
 nodal_correction_f1 = {
     'MM': -0.130,
     'MF': +0.414,
     'MSF': -0.037,  # f is the same M2 according to UKHO
-    'MFM': +0.414,
+    'MFM': +0.414,   # same as Mf according to Schureman, but same as Mm according to UKHO
     'MTM': +0.414,
+    'MT': +0.414,
+    'MSM': -0.167,  # MSM=MSF-Mm
     'MSQM': +0.414,
     'O1': +0.187,
     'Q1': +0.187,
@@ -185,13 +193,16 @@ nodal_correction_f1 = {
     'N2': -0.037,
     'L2': -0.037,
     'K2': +0.286,
+    'ETA2': +0.40197133789017,
     'MKS2': -0.037+0.286,  # MKS2=M2+K2-S2
 }
 nodal_correction_u1 = {
     'MF': -0.41364303,
     'MSF': -0.03665191,  # MSF=S2-M2 so u is - of M2 according to UKHO, but + of U2 according to FES!!
-    'MFM': -0.41364303,
+    'MSM': -0.03665191,  # MSM=MSF-Mm
+    'MFM': -0.41364303,  # same as Mf according to Schurman, but same as Mm according to UKHO
     'MTM': -0.41364303,
+    'MT': -0.41364303,
     'MSQM': -0.41364303,
     'O1': 0.18849556,
     'Q1': 0.18849556,
@@ -201,6 +212,7 @@ nodal_correction_u1 = {
     'N2': -0.03665191,
     'L2': -0.03665191,
     'K2': -0.30892328,
+    'ETA2': -0.305072967338429,
     'MKS2': -0.03665191-0.30892328,  # MKS2=M2+K2-S2
 }
 
@@ -216,7 +228,7 @@ for comp in ('N2', 'S2'):
     nodal_correction_u1[name] = m2u1 + nodal_correction_u1.get(comp, 0.0)
 
 # nodal corrections for M3-12
-for n in range(3, 13):
+for n in [1] + list(range(3, 13)):
     name = 'M'+str(n)
     nodal_correction_f0[name] = m2f0**(n/2.)
     nodal_correction_f1[name] = (m2f1/m2f0)*n/2.
