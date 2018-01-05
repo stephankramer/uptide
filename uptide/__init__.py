@@ -20,3 +20,5 @@ Python package for tidal computations. Main components:
 
 from uptide.tides import Tides  # NOQA
 from .analysis import harmonic_analysis  # NOQA
+from .tidal_netcdf import OTPSncTidalInterpolator  # NOQA
+from .fes_interpolator import FES2014TidalInterpolator, ALL_FES2014_TIDAL_CONSTITUENTS  # NOQA
