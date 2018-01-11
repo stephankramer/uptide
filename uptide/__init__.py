@@ -22,3 +22,4 @@ from uptide.tides import Tides  # NOQA
 from .analysis import harmonic_analysis  # NOQA
 from .tidal_netcdf import OTPSncTidalInterpolator  # NOQA
 from .fes_interpolator import FES2014TidalInterpolator, ALL_FES2014_TIDAL_CONSTITUENTS  # NOQA
+from .equilibrium import equilibrium_tide, ALL_EQUILIBRIUM_TIDAL_CONSTITUENTS  # NOQA
