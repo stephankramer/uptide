@@ -36,7 +36,7 @@ def harmonic_analysis(tide, x, t):
             numpy.sin(numpy.outer(t, tide.omega))
         ])
 
-    y = numpy.linalg.lstsq(mat, x)
+    y = numpy.linalg.lstsq(mat, x, rcond=None)
 
     if "Z0" in tide.constituents:
         B = y[0][0:M]
