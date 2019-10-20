@@ -10,7 +10,7 @@ Python package for tidal computations. Main components:
     netcdf_reader.NetCDFInterpolator - class of objects to interpolate
         values stored in a NetCDF file.
 
-    tidal_netcdf.TidalNetCDFInterpolator, tidal_netcdf.OTPSncTidalInterpolator,
+    tidal_netcdf.TidalNetCDFInterpolator, tidal_netcdf.TPXOTidalInterpolator,
     tidal_netcdf.FESTidalInterpolator, tidal_netcdf.AMCGTidalInterpolator -
         class of objects to reconstruct tidal signal from tidal database of
         amplitudes and phases of tidal constituents stored in NetCDF format.
@@ -21,4 +21,6 @@ Python package for tidal computations. Main components:
 from uptide.tides import Tides  # NOQA
 from .analysis import harmonic_analysis  # NOQA
 from .tidal_netcdf import OTPSncTidalInterpolator  # NOQA
+from .tidal_netcdf import TPXOTidalInterpolator  # NOQA
 from .fes_interpolator import FES2014TidalInterpolator, ALL_FES2014_TIDAL_CONSTITUENTS  # NOQA
+from .ellipse import tidal_ellipse_parameters  # NOQA

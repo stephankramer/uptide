@@ -41,7 +41,7 @@ class TidalNetCDFInterpolator(object):
         of filenames may also be provided to specify a separate file for each consituent.
 
         Three helper functions are available to create a TidalNetCDFInterpolator based on three
-        different conventions for storage format: OTPSncTidalInterpolator, FESTidalInterpolator and
+        different conventions for storage format: TPXOTidalInterpolator, FESTidalInterpolator and
         AMCGTidalInterpolator. These inititate a TidalNetCDFInterpolator and call the correct load_...() method.
 
         After this, the calling sequence is:
@@ -201,8 +201,8 @@ def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
     return tnci
 
 
-def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
-                            ranges=None):
+def TPXOTidalInterpolator(tide, grid_file_name, data_file_name,
+                          ranges=None):
     """Create a TidalNetCDFInterpolator from OTPSnc NetCDF files, where
     the grid is stored in a separate file (with "lon_z", "lat_z" and "mz"
     fields). The actual data is read from a seperate file with hRe and hIm
@@ -224,6 +224,10 @@ def OTPSncTidalInterpolator(tide, grid_file_name, data_file_name,
     tnci.load_complex_components_block(data_file_name, 'hRe', components,
                                        data_file_name, 'hIm', components)
     return tnci
+
+
+# old name:
+OTPSncTidalInterpolator = TPXOTidalInterpolator
 
 
 def FESTidalInterpolator(tide, fes_file_name, ranges=None):

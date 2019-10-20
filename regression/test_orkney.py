@@ -24,7 +24,7 @@ boundary_xy = numpy.loadtxt('orkney.xy')
 
 tide = uptide.Tides(constituents)
 tide.set_initial_time(initial_time)
-tnci = uptide.tidal_netcdf.OTPSncTidalInterpolator(tide,
+tnci = uptide.tidal_netcdf.TPXOTidalInterpolator(tide,
             grid_file_name, data_file_name, ranges)
 
 vals_t = []

@@ -120,11 +120,11 @@ class Interpolator(object):
                 # case without a land mask
 
                 if len(self.val.shape) == 2:
-                    value = ((1.0-beta)*((1.0-alpha)*self.val[i, j]+alpha*self.val[i+1, j]) +
-                             beta*((1.0-alpha)*self.val[i, j+1]+alpha*self.val[i+1, j+1]))
+                    value = ((1.0-beta)*((1.0-alpha)*self.val[i, j]+alpha*self.val[i+1, j])
+                             + beta*((1.0-alpha)*self.val[i, j+1]+alpha*self.val[i+1, j+1]))
                 elif len(self.val.shape) == 3:
-                    value = ((1.0-beta)*((1.0-alpha)*self.val[:, i, j]+alpha*self.val[:, i+1, j]) +
-                             beta*((1.0-alpha)*self.val[:, i, j+1]+alpha*self.val[:, i+1, j+1]))
+                    value = ((1.0-beta)*((1.0-alpha)*self.val[:, i, j]+alpha*self.val[:, i+1, j])
+                             + beta*((1.0-alpha)*self.val[:, i, j+1]+alpha*self.val[:, i+1, j+1]))
                 else:
                     raise NetCDFInterpolatorError("Field to interpolate, should have 2 or 3 dimensions")
         except IndexError:

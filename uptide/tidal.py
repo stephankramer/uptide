@@ -146,29 +146,29 @@ tidal_phase_origin.update({
 
 # compute the astronomical arguments H, s, h, p'
 def astronomical_argument(time):
-        # time should be specified as a datetime object
-        # compute the timedelta since 1975-1-1
-        if time.tzinfo is None:
-                # with naive datetimes without tzinfo, the assumption is everything is in UTC
-                dt0 = datetime.datetime(1975, 1, 1, 0, 0)
-        else:
-                # only pull in this dependency when tzinfo is supplied
-                import pytz
-                dt0 = pytz.utc.localize(datetime.datetime(1975, 1, 1, 0, 0))
-        td = time - dt0
-        # don't use total_seconds() as that's python2.7
-        D = td.days + td.seconds/day + 1.0  # days since 1975-1-1 counting from 1
-        # Note that in TABLE 1 of Schwiderski there is no H
-        # This is because there D is assumed integer (i.e. it computes \chi for
-        # midnight universal time), to add in the contribution for H keeping
-        # tidal_phase_origin above the same as in the table,
-        # we have to start H=0 at midnight instead of H=-180 which is the longitude
-        # of the sun at midnight Greenwich time
-        H = float(td.seconds)/day*360.  # fraction of the day since last noon time 360
+    # time should be specified as a datetime object
+    # compute the timedelta since 1975-1-1
+    if time.tzinfo is None:
+        # with naive datetimes without tzinfo, the assumption is everything is in UTC
+        dt0 = datetime.datetime(1975, 1, 1, 0, 0)
+    else:
+        # only pull in this dependency when tzinfo is supplied
+        import pytz
+        dt0 = pytz.utc.localize(datetime.datetime(1975, 1, 1, 0, 0))
+    td = time - dt0
+    # don't use total_seconds() as that's python2.7
+    D = td.days + td.seconds/day + 1.0  # days since 1975-1-1 counting from 1
+    # Note that in TABLE 1 of Schwiderski there is no H
+    # This is because there D is assumed integer (i.e. it computes \chi for
+    # midnight universal time), to add in the contribution for H keeping
+    # tidal_phase_origin above the same as in the table,
+    # we have to start H=0 at midnight instead of H=-180 which is the longitude
+    # of the sun at midnight Greenwich time
+    H = float(td.seconds)/day*360.  # fraction of the day since last noon time 360
 
-        T = (27392.500528+1.0000000356*D)/36525  # big T in Schwiderski
-        s, h, p, N, pp = numpy.dot(Schwiderski_matrix, [1.0, T, T**2, T**3])
-        return H, s, h, p, N, pp
+    T = (27392.500528+1.0000000356*D)/36525  # big T in Schwiderski
+    s, h, p, N, pp = numpy.dot(Schwiderski_matrix, [1.0, T, T**2, T**3])
+    return H, s, h, p, N, pp
 
 
 nodal_correction_f0 = {
@@ -250,8 +250,8 @@ m2u1 = nodal_correction_u1.get('M2', 0.0)
 for comp in ('N2', 'S2'):
     name = 'M'+comp[0]+'4'
     nodal_correction_f0[name] = m2f0 * nodal_correction_f0.get(comp, 1.0)
-    nodal_correction_f1[name] = (m2f0 * nodal_correction_f1.get(comp, 0.0) +
-                                 m2f1 * nodal_correction_f0.get(comp, 1.0))
+    nodal_correction_f1[name] = (m2f0 * nodal_correction_f1.get(comp, 0.0)
+                                 + m2f1 * nodal_correction_f0.get(comp, 1.0))
     nodal_correction_u1[name] = m2u1 + nodal_correction_u1.get(comp, 0.0)
 
 # nodal corrections for M3-12
@@ -292,9 +292,9 @@ def nodal_corrections(constituents, N, pp):
 
 
 def tidal_arguments(constituents, time):
-        astro = astronomical_argument(time)
-        arguments = []
-        for constituent in constituents:
-            arguments.append((numpy.dot(solar_doodson_numbers[constituent], astro)
-                             + tidal_phase_origin[constituent]) * deg2rad)
-        return numpy.array(arguments)
+    astro = astronomical_argument(time)
+    arguments = []
+    for constituent in constituents:
+        arguments.append((numpy.dot(solar_doodson_numbers[constituent], astro)
+                         + tidal_phase_origin[constituent]) * deg2rad)
+    return numpy.array(arguments)
