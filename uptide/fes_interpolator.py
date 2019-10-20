@@ -5,6 +5,7 @@ import tempfile
 import os
 from contextlib import contextmanager
 from .tides import Tides
+import numpy
 
 
 ALL_FES2014_TIDAL_CONSTITUENTS = ["2N2", "EPS2", "J1", "K1", "K2", "L2", "M2", "M3", "M4", "M6", "M8",
@@ -41,7 +42,6 @@ TIDE_{constituent}_LATITUDE     = lat
 TIDE_{constituent}_LONGITUDE    = lon
 TIDE_{constituent}_AMPLITUDE    = amplitude
 TIDE_{constituent}_PHASE        = phase
-TIDE_{constituent}_PHASE_LAG    = 1
 
 """
 
@@ -104,11 +104,15 @@ class FES2014TidalInterpolator(TidalInterpolator):
     def __init__(self, tide_or_fes_ini_file,
                  fes_data_path=None, include_long_period=True):
         # only import here to avoid hard dependency on fes
+        # there are two versions of this, the old (pre 2.9.1) is imported as fes,
+        # but from 2.9.1 we need to `import pyfes`
         try:
             import fes
         except ImportError:
-            # give helpful hint how to install fes
-            raise ImportError("Failed to import fes. This can be installed using: pip install git+https://bitbucket.org/cnes_aviso/fes.git#subdirectory=python")
+            try:
+                import pyfes as fes
+            except ImportError:
+                raise ImportError("Failed to import fes. See https://github.com/stephankramer/uptide for installation instructions.")
 
         if isinstance(tide_or_fes_ini_file, Tides):
             self.set_initial_time(tide_or_fes_ini_file.datetime0)
@@ -131,7 +135,12 @@ class FES2014TidalInterpolator(TidalInterpolator):
         """Evaluate tide in location x=(lat, lon)
 
         Here -90<lat<90 and 0<lon<360."""
-        st, lt = self.fh.scalar(x[0], x[1], self.current_datetime)
+        try:
+            # old API:
+            st, lt = self.fh.scalar(x[0], x[1], self.current_datetime)
+        except AttributeError:
+            # new API
+            st, lt, fes_min = self.fh.calculate(numpy.array([x[1]]), numpy.array([x[0]]), numpy.array([self.current_datetime]))
         # FES2014 is in cm, others are all in m
         if self.include_long_period:
             return (st+lt) * 0.01
