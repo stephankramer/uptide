@@ -2,6 +2,7 @@ from __future__ import print_function
 import uptide
 import uptide.tidal_netcdf
 import os.path
+import os
 import datetime
 import numpy
 import utm
@@ -10,7 +11,7 @@ import sys
 utm_zone = 30
 utm_band = 'V'
 ranges = ((-4.0,0.0), (58.0,61.0))
-otps_data_dir = '/home/skramer/git/OpenTidalFarm/examples/orkney_resource_assessment'
+otps_data_dir = os.environ['OTPS_DATA_PATH']
 grid_file_name = os.path.join(otps_data_dir, 'gridES2008.nc')
 data_file_name = os.path.join(otps_data_dir, 'hf.ES2008.nc')
 initial_time = datetime.datetime(2001, 9, 18, 0)

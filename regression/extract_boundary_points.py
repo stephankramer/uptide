@@ -5,7 +5,7 @@ xy_file_name = sys.argv[1]
 msh_file_name = sys.argv[2]
 surface_ids = [int(x) for x in sys.argv[3:]]
 
-f = file(msh_file_name, 'r')
+f = open(msh_file_name, 'r')
 
 while f.readline().strip() != '$Nodes':
     pass
