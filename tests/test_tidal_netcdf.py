@@ -1,7 +1,7 @@
 import pytest
 import os
 pytestmark = pytest.mark.skipif(
-    not any(x in os.environ for x in ('AMCG_TIDAL_FILE', 'OTPS_GRID_FILE', 'OTPS_DATA_FILE',
+    not any(x in os.environ for x in ('AMCG_TIDAL_FILE', 'OTPS_GRID_FILE', 'TPXO_GRID_FILE',
                                       'FES2004_FILE', 'FES2014_INI_FILE', 'FES2014_DATA_PATH')),
     reason="Only run when tidal data file are given with environment variables"
 )
@@ -52,6 +52,12 @@ def test():
                                                          os.environ['OTPS_DATA_FILE'],
                                                          ranges=((-4.0, 0.0), (58.0, 61.0)))
         series['OTPS'] = extract_series(tnci, (lon, lat), trange)
+    if 'TPXO_GRID_FILE' in os.environ:
+        tnci = uptide.tidal_netcdf.TPXOTidalInterpolator(tide,
+                                                         os.environ['TPXO_GRID_FILE'],
+                                                         os.environ['TPXO_DATA_FILE'],
+                                                         ranges=((356., 360.0), (58.0, 61.0)))
+        series['TXPO'] = extract_series(tnci, (360. + lon, lat), trange)
 
     if 'FES2004_FILE' in os.environ:
         tnci = uptide.tidal_netcdf.FESTidalInterpolator(tide,
