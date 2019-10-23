@@ -84,3 +84,26 @@ def test_all_constituents_are_tested(tide, mntide):
     tested = set(tide.constituents)
     tested.update(set(mntide.constituents))
     assert_equal(tested, supported)
+
+
+def test_minimum_Rayleigh_period():
+    tide = uptide.Tides(['M2', 'S2'])
+    ind1, ind2 = tide.get_closest_constituents()
+    assert tide.constituents[ind1] == 'M2' and tide.constituents[ind2] == 'S2'
+    assert_equal(tide.get_minimum_Rayleigh_period()/86400., 14.76536317823275)
+
+    tide = uptide.Tides(['M2', 'S2', 'N2', 'O1', 'P1', 'Q1', 'M4'])
+    ind1, ind2 = tide.get_closest_constituents()
+    assert tide.constituents[ind1] == 'Q1' and tide.constituents[ind2] == 'O1'
+    assert_equal(tide.get_minimum_Rayleigh_period()/86400., 27.554605699504986)
+
+    tide = uptide.Tides(['M2', 'S2', 'N2', 'K2', 'O1', 'P1', 'Q1', 'K1', 'M4', 'S1', 'MU2', 'NU2', 'L2', 'T2', 'Z0'])
+    ind1, ind2 = tide.get_closest_constituents()
+    assert tide.constituents[ind1] == 'T2' and tide.constituents[ind2] == 'S2'
+    assert_equal(tide.get_minimum_Rayleigh_period()/86400., 365.2596411154916)
+
+
+def test_select_constituents():
+    constituents = ['M2', 'S2', 'N2', 'K2', 'O1', 'P1', 'Q1', 'K1', 'M4', 'S1', 'MU2', 'NU2', 'L2', 'T2', 'Z0']
+    assert uptide.select_constituents(constituents, 15*86400.) == ['M2', 'S2', 'O1', 'P1', 'M4', 'Z0']
+    assert uptide.select_constituents(constituents, 31*86400.) == ['M2', 'S2', 'N2', 'O1', 'P1', 'Q1', 'M4', 'Z0']

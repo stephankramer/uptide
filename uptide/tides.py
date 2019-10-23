@@ -86,3 +86,40 @@ class Tides(object):
             eta += f*(numpy.cos(omega*t+phi+u)*real_part
                       - numpy.sin(omega*t+phi+u)*imag_part)
         return eta
+
+    def get_closest_constituents(self):
+        """Return the indices of the two constituents with the closest frequency.
+
+        Example:
+        ind1, ind2 = tide.get_closest_constituents()
+        print("The two closest constituents are: ", tide.constituents[ind1], tide.constituents[ind2])
+        print("with periods: ", 2*pi/tide.omega[ind1], 2*pi/tide.omega[ind2])
+        """
+        ind = numpy.argsort(self.omega)
+        diff_omega = self.omega[ind][1:] - self.omega[ind[:-1]]
+        mind = diff_omega.argmin()
+        return ind[mind], ind[mind+1]
+
+    def get_minimum_Rayleigh_period(self):
+        """Compute the minimum period (seconds) of time needed to distinguish the specified constituents
+        according to the Rayleigh criterion."""
+        ind1, ind2 = self.get_closest_constituents()
+        return 2*numpy.pi/(self.omega[ind2]-self.omega[ind1])
+
+
+def select_constituents(constituents, period):
+    """Select constituents according to Rayleigh criterion.
+
+    Selects those constituents such that the minimum Rayleigh period (of the two constituents
+    with the closest frequency) is smaller than the specified period. Constituents should be supplied
+    in order of importance. Whenever two constituents are discovered whose
+    frequencies are two close the one that is further in the list is removed."""
+
+    tide = Tides(constituents)
+    min_period = tide.get_minimum_Rayleigh_period()
+    if min_period < period:
+        return constituents
+    else:
+        ind1, ind2 = tide.get_closest_constituents()
+        max_ind = max(ind1, ind2)
+        return select_constituents(constituents[:max_ind]+constituents[max_ind+1:], period)

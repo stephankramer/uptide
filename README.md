@@ -121,12 +121,27 @@ print("M2 amplitude and phase:", amp[idx], pha[idx])
 
 Note that the harmonic analysis is a least squares inversion, which means that the result for each individual constituent may depend 
 on what other constituents are specified in `tide` in particular constituents with a close frequency. You should therefore ensure that the time-period of the signal
-is long enough to distinguish each pair of constituents. A useful criterion for this is given by the so called Rayleigh criterion. As an example, using the following code
-you can use uptide to compute the minimum period needed to reliably resolve the M2 and S2 constituents
+is long enough to distinguish each pair of constituents. A useful criterion for this is given by the so called Rayleigh criterion. As an example
 ```
-   print("Minimum period (days):", 2*pi/(uptide.tidal.omega['M2']-uptide.tidal.omega['S2'])/(24*3600.))
+tide = uptide.Tides(['M2', 'S2'])
+print(tide.get_minimum_Rayleigh_period()/86400.)  # 14 days, a spring neap cycle
+tide = uptide.Tides(['M2', 'S2', 'N2', 'K2', 'O1', 'P1', 'Q1', 'M4'])
+print(tide.get_minimum_Rayleigh_period()/86400.)  # half a year! why is this so long?
+ind1, ind2 = tide.get_closest_constituents()  # get the constituents with the closest frequency
+print('The two closest constituents are:', tide.constituents[ind1], tide.constituents[ind2])
+print('Their periods are {} and {} hours.'.format(2*pi/tide.omega[ind1]/3600., 2*pi/tide.omega[ind2]/3600))
+tide = uptide.Tides(['M2', 'S2', 'N2', 'O1', 'P1', 'Q1', 'M4'])  # let's remove K2
+print(tide.get_minimum_Rayleigh_period()/86400.)  # a month, much better!
 ```
-which gives (as expected) 14 days (a full spring-neap cycle).
+
+You can also automatically select the constituents that can be resolved within a certain period:
+```
+constituents  = ['M2', 'S2', 'N2', 'K2', 'O1', 'P1', 'Q1', 'M4']
+print(select_constituents(constituents, 15*86400))
+```
+Make sure that you provide the constituents in order of importance (most important ones first), as that will determine which 
+constituents will be eliminated first. 
+
 
 For the harmonic analysis of a velocity signal. First do a harmonic analysis of the u and v components separately
 ```
