@@ -5,7 +5,7 @@ import sys
 script_args = sys.argv[1:]
 
 setup(name='uptide',
-      version='0.5',
+      version='1.0',
       author='Stephan Kramer',
       author_email='s.kramer@imperial.ac.uk',
       description="uptide is a python package for tidal calculations. It computes the tidal " +
