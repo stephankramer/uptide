@@ -20,15 +20,25 @@ or use the python-netcdf4 package on Ubuntu and Debian.
 * for FES2014 support: the [FES package](https://bitbucket.org/cnes_aviso/fes). To build from source
  (note that there is unfortunately no longer a simple pip install):
 ```
-git clone git+https://bitbucket.org/cnes_aviso/fes.git
+git clone --recursive https://bitbucket.org/cnes_aviso/fes.git
 cd fes/
 mkdir build
+cd build
 cmake ../ -DCMAKE_INSTALL_PREFIX=<prefix> -DBUILD_PYTHON=yes
 make
 make install
 ```
 where `<prefix>` should be the installation. When using a python virtual environment you can use `$VIRTUAL_ENV`.
 When using conda replace the above with a single step: `conda install -c fbriol fes` (untested).
+
+NOTE: it seems this does not currently work with the Ubuntu/Debian libnetcdf13 package (run `make test` to 
+test which would segfault). For users in a **firedrake** environment, it is recommended to use the netcdf build by
+petsc. This is done through:
+```
+cmake -DCMAKE_INSTALL_PREFIX=$VIRTUAL_ENV -DBUILD_PYTHON=yes -DNETCDF_LIBRARY=$VIRTUAL_ENV/src/petsc/default/lib/libnetcdf.so.13 \
+   -DNETCDF_INCLUDE_DIR=$VIRTUAL_ENV/petsc/default/include/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=yes ../
+```
+The exact paths may change in the future. The last option is to avoid cmake stripping these paths in the install.
 
 # Functionality
 ## Reconstruction from given amplitudes and phases
