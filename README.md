@@ -33,7 +33,7 @@ When using conda replace the above with a single step: `conda install -c fbriol 
 
 NOTE: it seems this does not currently work with the Ubuntu/Debian libnetcdf13 package (run `make test` to 
 test which would segfault). For users in a **firedrake** environment, it is recommended to use the netcdf build by
-petsc. This is done through:
+petsc. This is done by replacing the cmake step with:
 ```
 cmake -DCMAKE_INSTALL_PREFIX=$VIRTUAL_ENV -DBUILD_PYTHON=yes -DNETCDF_LIBRARY=$VIRTUAL_ENV/src/petsc/default/lib/libnetcdf.so.13 \
    -DNETCDF_INCLUDE_DIR=$VIRTUAL_ENV/petsc/default/include/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=yes ../
