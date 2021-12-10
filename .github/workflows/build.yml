@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Install requirements
+        run: |
+          pip3 install -r requirements-test.txt -r requirements.txt
       - name: Test
         run: |
-          python3 -m pytest -n 2 -v tests/
+          python3 -m pytest -v tests/
