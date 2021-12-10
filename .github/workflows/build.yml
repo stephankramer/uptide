@@ -20,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install requirements
-        run: !
+        run: |
           pip3 install -r requirements-test.txt -r requirements.txt
       - name: Test
         run: |
