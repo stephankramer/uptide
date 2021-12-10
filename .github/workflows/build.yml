@@ -20,4 +20,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Test
+        run: |
           python3 -m pytest -n 2 -v tests/
