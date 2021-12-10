@@ -4,6 +4,11 @@ import sys
 
 script_args = sys.argv[1:]
 
+test_requires = [
+    'flake8>=3.0',
+    'pytest>=5.0',
+]
+
 setup(name='uptide',
       version='1.1',
       author='Stephan Kramer',
@@ -24,4 +29,5 @@ setup(name='uptide',
         'Topic :: Scientific/Engineering'],
       script_args = script_args,
       ext_package = 'uptide',
+      test_requires=test_requires,
       )
