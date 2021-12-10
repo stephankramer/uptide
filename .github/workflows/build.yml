@@ -1,0 +1,23 @@
+name: Test uptide
+
+on:
+  # Push to master or PR
+  push:
+    branches:
+      - master
+  pull_request:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    # Scheduled build at 0230 UTC on Monday mornings to detect bitrot.
+    - cron:  '30 2 * * 1'
+
+jobs:
+  build:
+    name: "Test uptide"
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Test
+          python3 -m pytest -n 2 -v tests/
