@@ -81,11 +81,21 @@ tnci = OTPSncTidalInterpolator(tide, grid_file, data_file, ranges=((-4.0, 0.0), 
 ```
 The optional `ranges` argument should give a longitude, lattiude bounding box of the region of interest (smaller means more efficient)
 
-For [FES2014](https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html), 
-after installing the [fes package](https://github.com/CNES/aviso-fes/) following the instructions above, you can either use
+For
+[FES2014](https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html),
+after installing the [fes package](https://github.com/CNES/aviso-fes/)
+following the instructions above, you need to download the associated netcdf files
+which requires prior [registration as
+described here](
+https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html).
+Download either ocean_tide.tar.xz or ocean_tide_extrapolated.tar.xz (latter
+extrapolates amplitudes and phases inland so that interpolation in coastal
+locations is less dependent on being exactly within the FES2014 grid) and
+extract the netcdf files.
+You can either use
 ```
 tnci = uptide.FES2014TidalInterpolator('<path to an ocean_tide.ini file>')
-tnci.set_initial_time(datetime.datetime(...)
+tnci.set_initial_time(datetime.datetime(...))
 ```
 in which case all constituents specified in the specified `ocean_tide.ini` are used
 (see [this example from the fes github repository](https://raw.githubusercontent.com/CNES/aviso-fes/main/data/fes2014/ocean_tide.ini))
