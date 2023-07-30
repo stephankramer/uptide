@@ -2,7 +2,6 @@ import numpy
 import uptide.netcdf_reader as netcdf_reader
 import itertools
 import os.path
-import six
 
 _deg2rad = numpy.pi/180.
 
@@ -102,7 +101,7 @@ class TidalNetCDFInterpolator(object):
 
     def _collect_fields_val(self, file_name, field_names):
         val = []
-        if isinstance(file_name, six.string_types):
+        if isinstance(file_name, str):
             file_names = itertools.repeat(file_name)
         else:
             file_names = file_name
