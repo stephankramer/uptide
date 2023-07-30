@@ -1,4 +1,3 @@
-from six import with_metaclass
 import abc
 import datetime
 import tempfile
@@ -13,7 +12,7 @@ ALL_FES2014_TIDAL_CONSTITUENTS = ["2N2", "EPS2", "J1", "K1", "K2", "L2", "M2", "
                                   "O1", "P1", "Q1", "R2", "S1", "S2", "S4", "SA", "SSA", "T2"]
 
 
-class TidalInterpolator(with_metaclass(abc.ABCMeta)):
+class TidalInterpolator(metaclass=abc.ABCMeta):
     """Abstract base class for tidal interpolators."""
 
     def set_initial_time(self, datetime0):
@@ -71,11 +70,13 @@ class FES2014TidalInterpolator(TidalInterpolator):
     Data can be downloaded from ftp://ftp.aviso.altimetry.fr/auxiliary/tide_model/fes2014_elevations_and_load/fes2014b_elevations/
     Download either ocean_tide.tar.xz or ocean_tide_extrapolated.tar.xz (latter extrapolates amplitudes and phases inland
     so that interpolation in coastal locations is less dependent on being exactly within the FES2014 grid) and extract
-    the netcdf files. For ftp access yYou need prior registration as described here:
+    the netcdf files. For ftp access you need prior registration as described here:
         https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html.
 
     To make use of this class you need to install the fes python package using:
-        pip install git+https://bitbucket.org/cnes_aviso/fes.git#subdirectory=python.
+        pip install packaging
+        pip install wheel
+        pip install --no-build-isolation git+https://github.com/CNES/aviso-fes/
 
     Constituents and initial (t=0) datetime are set via a Tides object. To use all constituents available
     in the FES2014 solution:
@@ -87,7 +88,7 @@ class FES2014TidalInterpolator(TidalInterpolator):
         tide.set_initial_time(datetime.datetime(1975, 10, 24, 0, 0))
         tnci = uptide.FES2014TidalInterpolator(tide, 'path_to_extracted_fes2014_solution/ocean_tide/')
 
-    Alternatively, you can also use the .ini files as provided in the fes source code (https://bitbucket.org/cnes_aviso/fes),
+    Alternatively, you can also use the .ini files as provided in the fes source code (https://raw.githubusercontent.com/CNES/aviso-fes/main/data/fes2014/ocean_tide.ini)
     and set the initial time seperately:
 
         tnci = uptide.FES2014TidalInterpolator('path_to/ocean_tide.ini')

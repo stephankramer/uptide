@@ -17,28 +17,12 @@ sudo CC=mpicc pip install netcdf4
 ```
 
 or use the python-netcdf4 package on Ubuntu and Debian.
-* for FES2014 support: the [FES package](https://bitbucket.org/cnes_aviso/fes). To build from source
- (note that there is unfortunately no longer a simple pip install):
+* for FES2014 support: the [Aviso FES package](https://github.com/CNES/aviso-fes/). To install:
 ```
-git clone --recursive https://bitbucket.org/cnes_aviso/fes.git
-cd fes/
-mkdir build
-cd build
-cmake ../ -DCMAKE_INSTALL_PREFIX=<prefix> -DBUILD_PYTHON=yes
-make
-make install
+pip install packaging
+pip install wheel
+pip install --no-build-isolation git+https://github.com/CNES/aviso-fes/
 ```
-where `<prefix>` should be the installation. When using a python virtual environment you can use `$VIRTUAL_ENV`.
-When using conda replace the above with a single step: `conda install -c fbriol fes` (untested).
-
-NOTE: it seems this does not currently work with the Ubuntu/Debian libnetcdf13 package (run `make test` to 
-test which would segfault). For users in a **firedrake** environment, it is recommended to use the netcdf build by
-petsc. This is done by replacing the cmake step with:
-```
-cmake -DCMAKE_INSTALL_PREFIX=$VIRTUAL_ENV -DBUILD_PYTHON=yes -DNETCDF_LIBRARY=$VIRTUAL_ENV/src/petsc/default/lib/libnetcdf.so.13 \
-   -DNETCDF_INCLUDE_DIR=$VIRTUAL_ENV/petsc/default/include/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=yes ../
-```
-The exact paths may change in the future. The last option is to avoid cmake stripping these paths in the install.
 
 # Functionality
 ## Reconstruction from given amplitudes and phases
@@ -98,12 +82,14 @@ tnci = OTPSncTidalInterpolator(tide, grid_file, data_file, ranges=((-4.0, 0.0), 
 The optional `ranges` argument should give a longitude, lattiude bounding box of the region of interest (smaller means more efficient)
 
 For [FES2014](https://www.aviso.altimetry.fr/en/data/products/auxiliary-products/global-tide-fes.html), 
-after installing the [fes library](https://bitbucket.org/cnes_aviso/fes) following the instructions above, you can either use
+after installing the [fes package](https://github.com/CNES/aviso-fes/) following the instructions above, you can either use
 ```
 tnci = uptide.FES2014TidalInterpolator('<path to an ocean_tide.ini file>')
 tnci.set_initial_time(datetime.datetime(...)
 ```
-in which case all constituents specified in the specified `ocean_tide.ini` are used, or
+in which case all constituents specified in the specified `ocean_tide.ini` are used
+(see [this example from the fes github repository](https://raw.githubusercontent.com/CNES/aviso-fes/main/data/fes2014/ocean_tide.ini))
+, or
 ```
 tnci = uptide.FES2014TidalInterpolator(tide, '<path to all the individual constituent files>')
 ```
