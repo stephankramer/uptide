@@ -217,7 +217,7 @@ def TPXOTidalInterpolator(tide, grid_file_name, data_file_name,
     # constituents available in the netCDF file
     constituents = tnci.nci.nc.variables['con'][:]
     # dict that maps constituent names to indices
-    constituent_index = dict(((constituent.tostring().decode().strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
+    constituent_index = dict(((constituent.tobytes().decode().strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
     # the indices of the requested constituents
     components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
     tnci.load_complex_components_block(data_file_name, 'hRe', components,
@@ -246,7 +246,7 @@ def TPXOncTidalComponentInterpolator(tide, grid_file_name, data_file_name,
     # constituents available in the netCDF file
     constituents = tnci.nci.nc.variables['con'][:]
     # dict that maps constituent names to indices
-    constituent_index = dict(((constituent.tostring().decode().strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
+    constituent_index = dict(((constituent.tobytes().decode().strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
     # the indices of the requested constituents
     components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
     tnci.load_amplitudes_and_phases_block(data_file_name, '{}a'.format(field_name), components,
@@ -272,7 +272,7 @@ def FESTidalInterpolator(tide, fes_file_name, ranges=None):
     # constituents available in the netCDF file
     constituents = tnci.nci.nc.variables['spectrum'][:]
     # dict that maps constituent names to indices
-    constituent_index = dict(((constituent.tostring().decode("utf-8").strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
+    constituent_index = dict(((constituent.tobytes().decode("utf-8").strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
     # the indices of the requested constituents
     components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
     tnci.load_amplitudes_and_phases_block(fes_file_name, 'Ha', components,
