@@ -124,7 +124,7 @@ for constituent, doodson_numbers in lunar_doodson_numbers.items():
     omega[constituent] = numpy.dot(doodson_numbers, astronomical_omegas)
 
 # sanity check that solar S2 is exactly 12 hours
-assert(abs(omega['S2']-2*pi/day*2) < 1e-10)
+assert abs(omega['S2']-2*pi/day*2) < 1e-10
 
 # the solar doodson numbers indicate a linear combination of (H, s, h, p) instead
 # of the lunar doodson numbers which refer to (Cm, s, h, p)
