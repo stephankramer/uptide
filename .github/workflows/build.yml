@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install requirements
         run: |
-          pip3 install -r requirements-test.txt -r requirements.txt
+          pip3 install -e ./[test]
       - name: Test
         run: |
           python3 -m pytest -v tests/
