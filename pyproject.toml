@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uptide"
+version = "1.2"
+description = "uptide is a python package for tidal calculations. It computes the tidal free surface height or velocities from the amplitudes and phases of the tidal constituents. These amplitudes and phases can be read from global tidal solutions such as TPXO or FES2014. Some limited functionality for tidal harmonic analysis is also available."
+authors = [
+    { name = "Stephan Kramer", email = "s.kramer@imperial.ac.uk" }
+]
+license = { text = "GNU Lesser General Public License v3 (LGPLv3)" }
+keywords = ["tides", "tidal", "harmonic analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering"
+]
+dependencies = [
+  "numpy>=1.9.0",
+  "netcdf4>=1.5.0",
+  "pytz",
+]
+
+[project.optional-dependencies]
+test = [
+  "flake8>=3.0",
+  "pytest>=5.0"
+]
+
+
+[project.urls]
+Homepage = "https://github.com/stephankramer/uptide"
+
+[tool.setuptools]
+packages = ["uptide"]
