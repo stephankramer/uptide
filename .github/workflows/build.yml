@@ -20,8 +20,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install hdf5
-        run: |
-          apt-get install libhdf5-openmpi-dev
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libhdf5-openmpi-dev
+          version: 1.0
       - name: Install requirements
         run: |
           pip3 install -e ./[test]
