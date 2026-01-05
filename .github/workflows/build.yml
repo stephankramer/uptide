@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Install hdf5
+        run: |
+          apt-get install libhdf5-openmpi-dev
       - name: Install requirements
         run: |
           pip3 install -e ./[test]
