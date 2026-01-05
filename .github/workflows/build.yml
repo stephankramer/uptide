@@ -22,7 +22,7 @@ jobs:
       - name: Install hdf5
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: libhdf5-openmpi-dev
+          packages: libhdf5-openmpi-dev libnetcdf-dev
           version: 1.0
       - name: Install requirements
         run: |
