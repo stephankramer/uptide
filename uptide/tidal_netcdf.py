@@ -287,7 +287,7 @@ def FES2012TidalInterpolator(tide, fes_ini_file_name, fes_data_path=None, ranges
     fes_data_path = os.path.normpath(fes_data_path)
 
     ini = read_fes_ini_file(fes_ini_file_name, fes_data_path)
-    first_entry = next(ini['TIDE'].itervalues())
+    first_entry = next(iter(ini["TIDE"].values()))
     grid_file_name = first_entry['FILE']
     lon_name = first_entry['LONGITUDE']
     lat_name = first_entry['LATITUDE']
