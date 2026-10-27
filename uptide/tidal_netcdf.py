@@ -8,10 +8,10 @@ _deg2rad = numpy.pi/180.
 
 class TidalNetCDFInterpolator(object):
     def __init__(self, tide, grid_file_name, dimensions, coordinate_fields,
-                 ranges=None, mask=None):
+                 ranges=None, mask=None, coordinate_periods=None):
         """Initiate a TidalNetCDFInterpolator. The specification of the names of the dimensions
         and coordinate_fields is the same as for the NetCDFGrid class, see its documentation.
-        ranges and mask may be specified in a similar way to the NetCDFGrid class.
+        ranges, mask and coordinate_periods may be specified in a similar way to the NetCDFGrid class.
         NOTE: setting a correct coordinate ranges is strongly recommended when reading
         from a NetCDF data base that is significantly bigger than the region of interest,
         as otherwise the tidal signal will be reconstructed for all points of the NetCDF grid
@@ -60,13 +60,15 @@ class TidalNetCDFInterpolator(object):
         self.ranges = ranges
         self.mask = mask
         self.mask_from_fill_value = None
+        self.coordinate_periods = coordinate_periods
         self._create_grid()
 
     def _create_grid(self):
         # NetCDFGrid is immutable, so we recreate it every time ranges or mask are changed
         self.nci = netcdf_reader.NetCDFGrid(self.grid_file_name, self.dimensions, self.coordinate_fields,
                                             ranges=self.ranges, mask=self.mask,
-                                            mask_from_fill_value=self.mask_from_fill_value)
+                                            mask_from_fill_value=self.mask_from_fill_value,
+                                            coordinate_periods=self.coordinate_periods)
 
     def set_ranges(self, ranges):
         self.ranges = ranges
@@ -164,7 +166,8 @@ class TidalNetCDFInterpolator(object):
         if not hasattr(self, "real_part"):
             raise Exception("Need to call load_amplitudes_and_phases() first!")
         val = self.tide.from_complex_components(self.real_part, self.imag_part, t)
-        self.interpolator = netcdf_reader.Interpolator(self.nci.origin, self.nci.delta, val, self.nci.mask)
+        self.interpolator = netcdf_reader.Interpolator(self.nci.origin, self.nci.delta, val, self.nci.mask,
+                                                       self.nci.periods)
 
     def get_val(self, x, allow_extrapolation=False):
         """Interpolates the tidal signal in point x, computed in set_time(). The order
@@ -177,7 +180,7 @@ class TidalNetCDFInterpolator(object):
 def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
     tnci = TidalNetCDFInterpolator(tide, netcdf_file_name,
                                    ('latitude', 'longitude'), ('latitude', 'longitude'),
-                                   ranges=ranges)
+                                   ranges=ranges, coordinate_periods=(None, 360.))
     """Create a TidalNetCDFInterpolator based on the 'AMCG' storage conventions
     where amplitudes and phases are stored in separate fields in a single file
     with field names such as M2amp, M2phase, etc. If present a field named "mask"
@@ -203,7 +206,8 @@ def TPXOTidalInterpolator(tide, grid_file_name, data_file_name,
     fields."""
     # read grid, ranges and mask from grid netCDF
     tnci = TidalNetCDFInterpolator(tide, grid_file_name,
-                                   ('nx', 'ny'), ('lon_z', 'lat_z'), ranges=ranges)
+                                   ('nx', 'ny'), ('lon_z', 'lat_z'), ranges=ranges,
+                                   coordinate_periods=(360., None))
     if "mz" in tnci.nci.nc.variables:
         tnci.set_mask("mz")
 
@@ -229,7 +233,8 @@ def TPXOncTidalComponentInterpolator(tide, grid_file_name, data_file_name,
     tnci = TidalNetCDFInterpolator(tide, grid_file_name,
                                    ('nx', 'ny'),
                                    ('lon_{}'.format(grid_field_name),
-                                    'lat_{}'.format(grid_field_name)), ranges=ranges)
+                                    'lat_{}'.format(grid_field_name)), ranges=ranges,
+                                   coordinate_periods=(360., None))
     mask_name = 'm{}'.format(grid_field_name)
     if mask_name in tnci.nci.nc.variables:
         tnci.set_mask(mask_name)
@@ -256,7 +261,8 @@ def FESTidalInterpolator(tide, fes_file_name, ranges=None):
     all constituents are stored in a single file. The amplitudes
     and phases are read from its Ha and Hg fields."""
     tnci = TidalNetCDFInterpolator(tide, fes_file_name,
-                                   ('Y', 'X'), ('lat', 'lon'), ranges=ranges)
+                                   ('Y', 'X'), ('lat', 'lon'), ranges=ranges,
+                                   coordinate_periods=(None, 360.))
     fill_value = tnci.nci.nc.variables['Ha'].missing_value
     tnci.set_mask_from_fill_value('Ha', fill_value)
 
@@ -283,7 +289,8 @@ def FES2012TidalInterpolator(tide, fes_ini_file_name, fes_data_path=None, ranges
     lon_name = first_entry['LONGITUDE']
     lat_name = first_entry['LATITUDE']
     tnci = TidalNetCDFInterpolator(tide, grid_file_name, (lon_name, lat_name),
-                                   (lon_name, lat_name), ranges=ranges)
+                                   (lon_name, lat_name), ranges=ranges,
+                                   coordinate_periods=(360., None))
 
     file_names = []
     amplitude_names = []

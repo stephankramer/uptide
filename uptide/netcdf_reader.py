@@ -16,6 +16,7 @@ except ImportError:
             # in python 2.6 it's called something else
             from scipy.io.netcdf import netcdf_file as NetCDFFile
 import math
+import warnings
 import numpy
 import numpy.ma
 
@@ -37,11 +38,17 @@ class CoordinateError(NetCDFInterpolatorError):
 
 
 class Interpolator(object):
-    def __init__(self, origin, delta, val, mask=None):
+    """Bilinear interpolation of values val on a uniform grid with the specified origin and delta.
+
+    If periods is specified, it should provide for each coordinate either None or the period of that
+    coordinate (e.g. 360 for longitude) in which case coordinates are mapped into the interval
+    [origin, origin+period) before interpolating."""
+    def __init__(self, origin, delta, val, mask=None, periods=None):
         self.origin = origin
         self.delta = delta
         self.val = val
         self.mask = mask
+        self.periods = periods
         # cache points that need to be extrapolated
         self.extrapolation_points = {}
 
@@ -71,6 +78,9 @@ class Interpolator(object):
         return extrap_points
 
     def get_val(self, x, allow_extrapolation=False):
+        if self.periods is not None:
+            x = tuple(xi if period is None else origin + (xi-origin) % period
+                      for xi, origin, period in zip(x, self.origin, self.periods))
         xhat = (x[0]-self.origin[0])/self.delta[0]
         yhat = (x[1]-self.origin[1])/self.delta[1]
         i = int(math.floor(xhat))
@@ -143,6 +153,15 @@ def _transpose(a):
         return numpy.transpose(a[:, :])
 
 
+def _concatenate(arrays, axis):
+    if len(arrays) == 1:
+        return arrays[0]
+    elif any(isinstance(a, numpy.ma.MaskedArray) for a in arrays):
+        return numpy.ma.concatenate(arrays, axis)
+    else:
+        return numpy.concatenate(arrays, axis)
+
+
 class NetCDFGrid(object):
     """Implements an object describing the grid of a NetCDF-stored data set, from which
     Interpolator objects can be obtained to interpolate the fields stored on it.
@@ -198,6 +217,15 @@ class NetCDFGrid(object):
 
         grid = NetCDFGrid('foo.nc', ('nx', 'ny'), ('longitude', latitude'), mask_from_fill_value=('z', -9999.))
 
+    For periodic coordinates, in particular longitude, the period can be specified with:
+
+        grid = NetCDFGrid('foo.nc', ('nx', 'ny'), ('longitude', latitude'), coordinate_periods=(360., None))
+
+    Coordinates passed to get_val, and ranges, are then accepted in any interval (e.g. -180<longitude<180 or
+    0<longitude<360) independent of the interval used in the NetCDF file. If the grid covers exactly one period
+    (e.g. a global grid from 1/6 to 360 degrees with a resolution of 1/6 degree) it is extended with a copy of the
+    last column before the first, and of the first column after the last, so that interpolation wraps around.
+
     Finally, for the case where the coordinate fields (and optionally the mask field) is stored in a different file
     than the one containing the field values to be interpolated, the following syntax is provided:
 
@@ -205,24 +233,25 @@ class NetCDFGrid(object):
         grid2 = NetCDFGrid('values.nc', grid1)
         interpolator = grid2.get_interpolator('temperature')
 
-    Here, the coordinate information of grid1, including the mask and ranges if set, are copied and used in grid2.
+    Here, the coordinate information of grid1, including the mask, ranges and periods if set, are copied and used in grid2.
 
     """
-    def __init__(self, filename, *args, ranges=None, mask=None, mask_from_fill_value=None):
+    def __init__(self, filename, *args, ranges=None, mask=None, mask_from_fill_value=None, coordinate_periods=None):
         self.nc = NetCDFFile(filename, 'r')
 
         if len(args) == 1:
 
             # we copy the grid information of another netcdf grid
 
-            if ranges is not None or mask is not None or mask_from_fill_value is not None:
-                raise ValueError("Cannot specify ranges or mask when copying grid information from another NetCDFGrid")
+            if not (ranges is None and mask is None and mask_from_fill_value is None and coordinate_periods is None):
+                raise ValueError("Cannot specify ranges, mask or coordinate_periods when copying grid information from another NetCDFGrid")
             grid = args[0]
             self.dimensions = grid.dimensions
             self.shape = grid.shape
             self.origin = grid.origin
             self.delta = grid.delta
-            self.iranges = grid.iranges
+            self.periods = grid.periods
+            self.blocks = grid.blocks
             self.mask = grid.mask
 
         elif len(args) == 2:
@@ -247,22 +276,25 @@ class NetCDFGrid(object):
                     d = numpy.diff(val)
                 elif len(val.shape) == 2:
                     self.origin.append(val[0, 0])
-                    d = numpy.maximum(numpy.diff(val, axis=0), numpy.diff(val, axis=1).T)
+                    # the coordinate should vary along its own dimension
+                    d = numpy.diff(val, axis=list(val.dimensions).index(dimension))
                 else:
                     raise NetCDFInterpolatorError("Unrecognized shape of coordinate field")
                 # these should be the same for uniform grid:
                 dmin = d.min()
                 dmax = d.max()
-                if dmin <= 0. or dmax-dmin > 1e-12*dmin:
+                if dmin <= 0. or dmax-dmin > 1e-6*dmin:
                     raise NetCDFInterpolatorError("Grid should be uniform with monotonic coordinates")
                 self.delta.append(dmin)
 
-            self.iranges = None
-            self.mask = None
+            if coordinate_periods is None:
+                self.periods = [None, None]
+            else:
+                self.periods = list(coordinate_periods)
 
-            # ranges need to be set first, so that the mask is restricted to them
-            if ranges is not None:
-                self._set_ranges(ranges)
+            # ranges (and periodic extension) need to be set first, so that the mask is restricted to them
+            self._set_ranges(ranges)
+            self.mask = None
             if mask is not None and mask_from_fill_value is not None:
                 raise ValueError("Cannot specify both mask and mask_from_fill_value")
             elif mask is not None:
@@ -275,27 +307,94 @@ class NetCDFGrid(object):
                              "NetCDFGrid(filename, grid) or "
                              "NetCDFGrid(filename, dimensions, coordinate_fields).")
 
-    def _set_ranges(self, ranges):
-        """Set the range of the coordinates. All the values of points located within this range are read from file at once.
-        This may be more efficient if many interpolations are done within this domain."""
-        self.iranges = []
-        origin_new = []
-        shape_new = []
-        for xlimits, xmin, xshape, deltax in zip(ranges, self.origin, self.shape, self.delta):
-            # compute the index range imin:imax
+    def _is_fully_periodic(self, d):
+        """Whether dimension d covers exactly one period, i.e. needs to be extended to wrap around."""
+        period = self.periods[d]
+        if period is None:
+            return False
+        excess = self.shape[d]*self.delta[d] - period
+        tol = 1e-3*self.delta[d]
+        if abs(excess) < tol:
+            return True
+        elif abs(excess) < self.delta[d]-tol:
+            warnings.warn("Grid in dimension {} is nearly, but not exactly periodic with period {}: "
+                          "no interpolation across the end points of the grid".format(self.dimensions[d], period))
+        # otherwise either the grid already covers the period with a duplicate end point, or it's regional
+        return False
+
+    def _get_index_range(self, d, xlimits, fully_periodic):
+        """Return the range imin:imax of indices in dimension d needed to interpolate within the coordinate range xlimits.
+        If dimension d is fully periodic, imin and imax may be outside 0:n and are to be interpreted modulo n."""
+        origin, delta, n, period = self.origin[d], self.delta[d], self.shape[d], self.periods[d]
+        if fully_periodic:
+            # extended with one copy of the last/first column before/after the grid
+            full_range = (-1, n+1)
+        else:
+            full_range = (0, n)
+        if xlimits is None or (period is not None and xlimits[1]-xlimits[0] >= period):
+            return full_range
+
+        def index_range(xmin, xmax):
             # for the min, take one off (i.e. add an extra row column) to avoid rounding issues:
-            imin = max(int((xlimits[0]-xmin)/deltax)-1, 0)
+            imin = math.floor((xmin-origin)/delta)-1
             # for the max, we add 3 because:
             # 1) we're rounding off first
             # 2) add one extra for rounding off issues
             # 3) python imin:imax range means up to and *excluding* imax
             # Example: xmin=0.0, deltax=1.0, xlimits[1]=3.7 -> imax=6
             # (which is one too many, but nearing 3.999 we may get into a situation where we have to interpolate between 4 and 5)
-            imax = min(int((xlimits[1]-xmin)/deltax)+3, xshape)
-            if imin >= imax:
-                raise NetCDFInterpolatorError("Provided ranges outside netCDF range")
-            self.iranges.append((imin, imax))
-            origin_new.append(xmin+imin*deltax)
+            imax = math.floor((xmax-origin)/delta)+3
+            return imin, imax
+
+        if period is None:
+            candidates = [xlimits]
+        else:
+            # map range into [origin, origin+period), and also try the range shifted one period to the left
+            # as the shifted range may also (partly) overlap a non-periodic grid
+            xmin = origin + (xlimits[0]-origin) % period
+            xmax = xmin + xlimits[1] - xlimits[0]
+            candidates = [(xmin, xmax), (xmin-period, xmax-period)]
+
+        if fully_periodic:
+            imin, imax = index_range(*candidates[0])
+            if imax-imin >= n+2:
+                return full_range
+            return imin, imax
+
+        # take the smallest range that includes all (clipped) candidate ranges
+        iranges = [(max(imin, 0), min(imax, n)) for imin, imax in (index_range(*c) for c in candidates)]
+        iranges = [(imin, imax) for imin, imax in iranges if imin < imax]
+        if len(iranges) == 0:
+            raise NetCDFInterpolatorError("Provided ranges outside netCDF range")
+        return min(ir[0] for ir in iranges), max(ir[1] for ir in iranges)
+
+    def _set_ranges(self, ranges):
+        """Set the range of the coordinates. All the values of points located within this range are read from file at once.
+        This may be more efficient if many interpolations are done within this domain. Also extends fully periodic grids
+        to wrap around. If ranges is None, the entire grid is used."""
+        fully_periodic = [self._is_fully_periodic(d) for d in range(2)]
+        if ranges is None and not any(fully_periodic):
+            # use the entire unextended grid, which avoids reading the fields into memory
+            self.blocks = None
+            return
+
+        # for each dimension, a list of contiguous blocks start:stop of indices to be read
+        self.blocks = []
+        origin_new = []
+        shape_new = []
+        for d in range(2):
+            n = self.shape[d]
+            imin, imax = self._get_index_range(d, None if ranges is None else ranges[d], fully_periodic[d])
+            # split imin:imax, modulo n, in contiguous blocks
+            blocks = []
+            i = imin
+            while i < imax:
+                start = i % n
+                stop = min(start + imax - i, n)
+                blocks.append((start, stop))
+                i += stop - start
+            self.blocks.append(blocks)
+            origin_new.append(self.origin[d]+imin*self.delta[d])
             shape_new.append(imax-imin)
 
         self.origin = origin_new
@@ -310,11 +409,14 @@ class NetCDFGrid(object):
         else:
             raise NetCDFInterpolatorError("Dimensions of field {} not the same as specified in __init__".format(var))
 
-    def _get_index(self, dim_order):
-        """Index (in storage order) of the last two dimensions of a field, restricted to the ranges if set."""
-        if self.iranges is None:
-            return (slice(None), slice(None))
-        return tuple(slice(*self.iranges[d]) for d in dim_order)
+    def _read(self, var, dim_order, index=()):
+        """Read values of the last two dimensions (in storage order) of var restricted to self.blocks.
+        The index into any further leading dimensions is given by index."""
+        if self.blocks is None:
+            return var[index + (slice(None), slice(None))]
+        blocks0, blocks1 = [self.blocks[d] for d in dim_order]
+        return _concatenate([_concatenate([var[index + (slice(*b0), slice(*b1))] for b1 in blocks1], -1)
+                             for b0 in blocks0], -2)
 
     def _set_mask(self, field_name):
         """Sets a land mask from a mask field. This field should have a value of 0.0 for land points and 1.0 for the sea"""
@@ -327,8 +429,8 @@ class NetCDFGrid(object):
             raise NetCDFInterpolatorError("Mask field should have 2 dimensions")
         dim_order = self._get_dim_order(mask)
 
-        if self.iranges is not None:
-            mask = mask[self._get_index(dim_order)]
+        if self.blocks is not None:
+            mask = self._read(mask, dim_order)
 
         # self.mask is always stored in the order of self.dimensions
         if dim_order == [0, 1]:
@@ -341,12 +443,11 @@ class NetCDFGrid(object):
         does not have to be the same as the field that is interpolated from."""
         val = self.nc.variables[field_name]
         dim_order = self._get_dim_order(val)
-        index = self._get_index(dim_order)
         if len(val.shape) == 2:
-            val = val[index]
+            val = self._read(val, dim_order)
         elif len(val.shape) == 3:
             # multiple values per gridpoint, just take the first one
-            val = val[(0,) + index]
+            val = self._read(val, dim_order, (0,))
         else:
             raise NetCDFInterpolatorError("Field to extract mask from, should have 2 or 3 dimensions")
 
@@ -363,12 +464,12 @@ class NetCDFGrid(object):
         specified to only read the values with that index in the first dimension."""
         val = self.nc.variables[field_name]
         dim_order = self._get_dim_order(val)
-        index = self._get_index(dim_order)
         if component is not None:
-            index = (component,) + index
+            val = self._read(val, dim_order, (component,))
         elif len(val.shape) == 3:
-            index = (slice(None),) + index
-        val = val[index]
+            val = self._read(val, dim_order, (slice(None),))
+        else:
+            val = self._read(val, dim_order)
         if dim_order == [0, 1]:
             return val
         else:
@@ -382,16 +483,14 @@ class NetCDFGrid(object):
             raise NetCDFInterpolatorError("Field to interpolate, should have 2 or 3 dimensions")
         dim_order = self._get_dim_order(val)
 
-        if self.iranges is not None:
-            index = self._get_index(dim_order)
-            if len(val.shape) == 3:
-                index = (slice(None),) + index
-            val = val[index]
+        if self.blocks is not None:
+            val = self._read(val, dim_order, (slice(None),)*(len(val.shape)-2))
 
         origin = [self.origin[d] for d in dim_order]
         delta = [self.delta[d] for d in dim_order]
+        periods = [self.periods[d] for d in dim_order]
         if dim_order == [0, 1]:
-            return Interpolator(origin, delta, val, self.mask)
+            return Interpolator(origin, delta, val, self.mask, periods)
         else:
             mask = None if self.mask is None else _transpose(self.mask)
-            return TransposedInterpolator(origin, delta, val, mask)
+            return TransposedInterpolator(origin, delta, val, mask, periods)
