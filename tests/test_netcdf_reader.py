@@ -1,6 +1,5 @@
 import unittest
-from uptide.netcdf_reader import NetCDFInterpolator, CoordinateError, NetCDFFile
-import itertools
+from uptide.netcdf_reader import NetCDFGrid, CoordinateError, NetCDFFile
 import os
 from numpy import arange, array, ones
 
@@ -14,8 +13,8 @@ test_file_name1 = 'tests/test_netcdf_reader1.nc'
 test_file_name2 = 'tests/test_netcdf_reader2.nc'
 
 
-class TestNetCDFInterpolator(unittest.TestCase):
-    """Tests the uptide.netcdf.NetCDFInterpolator class"""
+class TestNetCDFGrid(unittest.TestCase):
+    """Tests the uptide.netcdf_reader.NetCDFGrid class"""
     def setUp(self):
         # it seems that many scipy installations are broken for
         # netcdf writing - therefore simply committing the
@@ -54,92 +53,70 @@ class TestNetCDFInterpolator(unittest.TestCase):
         os.remove(test_file_name2)
         pass
 
-    def _test_prepared_nci(self, nci, perm, coordinate_perm):
-        # first the tests common to all permutations
+    def _test_interpolator(self, interpolator, mask, ranges, coordinate_perm):
+        # first the tests common to all combinations
         # point that is always inside:
         xy = [[4.33, 5.2][i] for i in coordinate_perm]
-        self.assertEqual(nci.get_val(xy), f(4.33, 5.2))
+        self.assertEqual(interpolator.get_val(xy), f(4.33, 5.2))
         # point outside the domain, should raise exception:
         xy = [[-4.95, 8.3][i] for i in coordinate_perm]
-        self.assertRaises(CoordinateError, nci.get_val, xy)
+        self.assertRaises(CoordinateError, interpolator.get_val, xy)
 
-        if set(perm).intersection('mask', 'transposed_mask', 'mask_from_fill_value'):
+        if mask is not None:
             # point within sea, should work as before:
             xy = [[4.33, 5.2][i] for i in coordinate_perm]
-            self.assertAlmostEqual(nci.get_val(xy), f(4.33, 5.2))
+            self.assertAlmostEqual(interpolator.get_val(xy), f(4.33, 5.2))
             # point between row of land and of sea points, should interpolate from nearest sea row:
             xy = [[1.2, 8.3][i] for i in coordinate_perm]
-            self.assertAlmostEqual(nci.get_val(xy), f(2.0, 8.3))
+            self.assertAlmostEqual(interpolator.get_val(xy), f(2.0, 8.3))
             # point inside the first two land rows, should raise exception
             xy = [[0.95, 8.3][i] for i in coordinate_perm]
-            self.assertRaises(CoordinateError, nci.get_val, xy)
-        if 'ranges' in perm:
+            self.assertRaises(CoordinateError, interpolator.get_val, xy)
+        if ranges:
             # test within the range
             xy = [[2.9, 7.0][i] for i in coordinate_perm]
-            self.assertAlmostEqual(nci.get_val(xy), f(2.9, 7.))
+            self.assertAlmostEqual(interpolator.get_val(xy), f(2.9, 7.))
             # tests outside the range, should raise exception
             xy = [[3.2, 0.9][i] for i in coordinate_perm]
-            self.assertRaises(CoordinateError, nci.get_val, xy)
+            self.assertRaises(CoordinateError, interpolator.get_val, xy)
             xy = [[5.9, 9.0][i] for i in coordinate_perm]
-            self.assertRaises(CoordinateError, nci.get_val, xy)
+            self.assertRaises(CoordinateError, interpolator.get_val, xy)
 
-    # test a specific permutation of the calling sequence set_field, set_mask, set_ranges
-    # and specific coordinate_perm (lat, lon) or (lon, lat)
-    def _test_permutation(self, perm, coordinate_perm):
+    # test a specific combination of mask (None, 'mask', 'transposed_mask' or 'mask_from_fill_value'),
+    # ranges (True or False) and coordinate_perm (lat, lon) or (lon, lat)
+    def _test_combination(self, mask, ranges, coordinate_perm):
+        kwargs = {}
+        if mask == 'mask_from_fill_value':
+            kwargs['mask_from_fill_value'] = ('mask', 0.0)
+        elif mask is not None:
+            kwargs['mask'] = mask
+        if ranges:
+            kwargs['ranges'] = [((0., 4.), (2., 8.))[i] for i in coordinate_perm]
         # load the netcdf created in setup()
         if coordinate_perm == (0, 1):
-            nci = NetCDFInterpolator(test_file_name1, ('lat', 'lon'), ('latitude', 'longitude'))
+            grid = NetCDFGrid(test_file_name1, ('lat', 'lon'), ('latitude', 'longitude'), **kwargs)
         else:
-            nci = NetCDFInterpolator(test_file_name1, ('lon', 'lat'), ('longitude', 'latitude'))
-        # call the methods in the order given by perm
-        for x in perm:
-            if x == 'field':
-                nci.set_field('z')
-            elif x == 'mask':
-                nci.set_mask('mask')
-            elif x == 'transposed_mask':
-                nci.set_mask('transposed_mask')
-            elif x == 'mask_from_fill_value':
-                nci.set_mask_from_fill_value('mask', 0.0)
-            elif x == 'ranges':
-                if coordinate_perm == (0, 1):
-                    nci.set_ranges(((0., 4.), (2., 8.)))
-                else:
-                    nci.set_ranges(((2., 8.), (0., 4.)))
-            else:
-                raise Exception("Unknown method")
-
-        # now perform all tests
-        if 'field' in perm:
-            # if 'field' is not in perm we only test reading the field from nci2
-            self._test_prepared_nci(nci, perm, coordinate_perm)
+            grid = NetCDFGrid(test_file_name1, ('lon', 'lat'), ('longitude', 'latitude'), **kwargs)
+        self._test_interpolator(grid.get_interpolator('z'), mask, ranges, coordinate_perm)
 
         # now try the same for the case where the field values are stored in a separate file
-        nci2 = NetCDFInterpolator(test_file_name2, nci)
-        nci2.set_field('z')
-        self._test_prepared_nci(nci2, perm, coordinate_perm)
+        grid2 = NetCDFGrid(test_file_name2, grid)
+        self._test_interpolator(grid2.get_interpolator('z'), mask, ranges, coordinate_perm)
 
-    # test all permutations of the calling sequence set_field, set_mask, set_ranges
-    # including all permutations that only call 1 or 2 of these methods
-    # set_field should always be called
+    # test all combinations of mask and ranges options
     # also try out coordinate permutations lat, lon and lon, lat (the read nc file is lat, lon in both cases)
-    def test_all_permutations(self):
-        for n in range(1, 4):
-            for perm in itertools.permutations(['field', 'mask', 'ranges'], n):
+    def test_all_combinations(self):
+        for mask in (None, 'mask', 'transposed_mask', 'mask_from_fill_value'):
+            for ranges in (False, True):
                 for coordinate_perm in ((0, 1), (1, 0)):
-                    self._test_permutation(perm, coordinate_perm)
+                    self._test_combination(mask, ranges, coordinate_perm)
 
-    def test_all_permutations_with_fill_value(self):
-        for n in range(1, 4):
-            for perm in itertools.permutations(['field', 'mask_from_fill_value', 'ranges'], n):
-                for coordinate_perm in ((0, 1), (1, 0)):
-                    self._test_permutation(perm, coordinate_perm)
-
-    def test_all_permutations_with_transposed_mask(self):
-        for n in range(1, 4):
-            for perm in itertools.permutations(['field', 'transposed_mask', 'ranges'], n):
-                for coordinate_perm in ((0, 1), (1, 0)):
-                    self._test_permutation(perm, coordinate_perm)
+    def test_get_values(self):
+        grid = NetCDFGrid(test_file_name1, ('lon', 'lat'), ('longitude', 'latitude'), ranges=((2., 8.), (0., 4.)))
+        val = grid.get_values('z')
+        self.assertEqual(val.shape, tuple(grid.shape))
+        lon0, lat0 = grid.origin
+        self.assertAlmostEqual(val[1, 2], f(lat0 + 2., lon0 + 1.))
 
 
 if __name__ == '__main__':

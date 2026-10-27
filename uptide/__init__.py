@@ -7,7 +7,7 @@ Python package for tidal computations. Main components:
     harmonic_analysis   - function to compute harmonic analysis on a
         signal. Reconstructs amplitudes and phases of specified constituents.
 
-    netcdf_reader.NetCDFInterpolator - class of objects to interpolate
+    netcdf_reader.NetCDFGrid - class of objects to interpolate
         values stored in a NetCDF file.
 
     tidal_netcdf.TidalNetCDFInterpolator, tidal_netcdf.TPXOTidalInterpolator,

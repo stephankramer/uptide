@@ -10,8 +10,8 @@ class TidalNetCDFInterpolator(object):
     def __init__(self, tide, grid_file_name, dimensions, coordinate_fields,
                  ranges=None, mask=None):
         """Initiate a TidalNetCDFInterpolator. The specification of the names of the dimensions
-        and coordinate_fields is the same as for the NetCDFInterpolator class, see its documentation.
-        ranges and mask may be specified in a similar way to the NetCDFInterpolator class.
+        and coordinate_fields is the same as for the NetCDFGrid class, see its documentation.
+        ranges and mask may be specified in a similar way to the NetCDFGrid class.
         NOTE: setting a correct coordinate ranges is strongly recommended when reading
         from a NetCDF data base that is significantly bigger than the region of interest,
         as otherwise the tidal signal will be reconstructed for all points of the NetCDF grid
@@ -55,22 +55,32 @@ class TidalNetCDFInterpolator(object):
         """
         self.tide = tide
         self.grid_file_name = grid_file_name
-        self.nci = netcdf_reader.NetCDFInterpolator(grid_file_name, dimensions,
-                                                    coordinate_fields)
+        self.dimensions = dimensions
+        self.coordinate_fields = coordinate_fields
+        self.ranges = ranges
+        self.mask = mask
+        self.mask_from_fill_value = None
+        self._create_grid()
 
-        if ranges is not None:
-            self.set_ranges(ranges)
-        if mask is not None:
-            self.set_mask(mask)
+    def _create_grid(self):
+        # NetCDFGrid is immutable, so we recreate it every time ranges or mask are changed
+        self.nci = netcdf_reader.NetCDFGrid(self.grid_file_name, self.dimensions, self.coordinate_fields,
+                                            ranges=self.ranges, mask=self.mask,
+                                            mask_from_fill_value=self.mask_from_fill_value)
 
     def set_ranges(self, ranges):
-        self.nci.set_ranges(ranges)
+        self.ranges = ranges
+        self._create_grid()
 
     def set_mask(self, field_name):
-        self.nci.set_mask(field_name)
+        self.mask = field_name
+        self.mask_from_fill_value = None
+        self._create_grid()
 
     def set_mask_from_fill_value(self, field_name, fill_value):
-        self.nci.set_mask_from_fill_value(field_name, fill_value)
+        self.mask = None
+        self.mask_from_fill_value = (field_name, fill_value)
+        self._create_grid()
 
     def load_amplitudes_and_phases(self, amplitude_file_name, amplitude_field_names,
                                    phase_file_name, phase_field_names):
@@ -106,19 +116,12 @@ class TidalNetCDFInterpolator(object):
         else:
             file_names = file_name
 
-        nci_filenm = self.grid_file_name
-        nci = self.nci
-
+        grids = {self.grid_file_name: self.nci}
         for filenm, fieldnm in zip(file_names, field_names):
-            if not filenm == nci_filenm:
+            if filenm not in grids:
                 # copies grid, mask and ranges information from self.nci (the "grid" netCDF file)
-                nci = netcdf_reader.NetCDFInterpolator(filenm, self.nci)
-                nci_filenm = filenm
-            nci.set_field(fieldnm)
-            if nci.dim_order[0] == 0:
-                val.append(nci.val[:])
-            else:
-                val.append(nci.val[:].T)
+                grids[filenm] = netcdf_reader.NetCDFGrid(filenm, self.nci)
+            val.append(grids[filenm].get_values(fieldnm))
         return val
 
     def load_amplitudes_and_phases_block(self,
@@ -149,19 +152,11 @@ class TidalNetCDFInterpolator(object):
 
     def _collect_fields_block(self, file_name, field_name, field_components):
         if file_name == self.grid_file_name:
-            nci = self.nci
+            grid = self.nci
         else:
             # copies grid, mask and ranges information from self.nci (the "grid" netCDF file)
-            nci = netcdf_reader.NetCDFInterpolator(file_name, self.nci)
-        nci.set_field(field_name)
-
-        val = []
-        for component in field_components:
-            if nci.dim_order[0] == 0:
-                val.append(nci.val[component, :, :])
-            else:
-                val.append(nci.val[component, :, :].T)
-        return val
+            grid = netcdf_reader.NetCDFGrid(file_name, self.nci)
+        return [grid.get_values(field_name, component) for component in field_components]
 
     def set_time(self, t):
         """Set the time in seconds after the datetime specified by tide.set_initial_time(). Recomputes
@@ -211,11 +206,9 @@ def TPXOTidalInterpolator(tide, grid_file_name, data_file_name,
                                    ('nx', 'ny'), ('lon_z', 'lat_z'), ranges=ranges)
     if "mz" in tnci.nci.nc.variables:
         tnci.set_mask("mz")
-    # now swap its nci (keeping all above information) with one for the data file
-    tnci.nci = netcdf_reader.NetCDFInterpolator(data_file_name, tnci.nci)
 
-    # constituents available in the netCDF file
-    constituents = tnci.nci.nc.variables['con'][:]
+    # constituents available in the netCDF data file
+    constituents = netcdf_reader.NetCDFFile(data_file_name, 'r').variables['con'][:]
     # dict that maps constituent names to indices
     constituent_index = dict(((constituent.tobytes().decode().strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
     # the indices of the requested constituents
@@ -240,11 +233,9 @@ def TPXOncTidalComponentInterpolator(tide, grid_file_name, data_file_name,
     mask_name = 'm{}'.format(grid_field_name)
     if mask_name in tnci.nci.nc.variables:
         tnci.set_mask(mask_name)
-    # now swap its nci (keeping all above information) with one for the data file
-    tnci.nci = netcdf_reader.NetCDFInterpolator(data_file_name, tnci.nci)
 
-    # constituents available in the netCDF file
-    constituents = tnci.nci.nc.variables['con'][:]
+    # constituents available in the netCDF data file
+    constituents = netcdf_reader.NetCDFFile(data_file_name, 'r').variables['con'][:]
     # dict that maps constituent names to indices
     constituent_index = dict(((constituent.tobytes().decode().strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
     # the indices of the requested constituents
