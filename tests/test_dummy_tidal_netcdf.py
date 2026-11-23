@@ -4,6 +4,7 @@ import netCDF4
 import os
 import numpy as np
 import datetime
+from uptide.tidal_netcdf import TPXOncTidalComponentInterpolator
 
 constituents = ('M2', 'S2', 'N2', 'K2', 'K1', 'O1', 'P1', 'Q1')
 
@@ -123,6 +124,28 @@ def dummy_tpxo_atlas_files(tmp_path):
         hIm[:] = 0
         ds.close()
 
+    for i, constituent in enumerate(constituents):
+        ds = netCDF4.Dataset(tmp_path / f'u_{constituent.lower()}_atlas.nc', 'w', format='NETCDF3_CLASSIC')
+        ds.createDimension('nx', nx)
+        ds.createDimension('ny', ny)
+        nct = ds.createDimension('nct', 4)
+        ds.createVariable('con', 'c', ('nct',))[:] = netCDF4.stringtochar(np.array([constituent.lower().ljust(nct.size)], 'S4'))[0]
+        for c in 'uv':
+            ds.createVariable(f'lon_{c}', np.float64, ('nx',))[:] = lon
+            ds.createVariable(f'lat_{c}', np.float64, ('ny',))[:] = lat
+        # transport amplitudes in cm^2/s: (i+1) m^2/s for u, and -(i+1) m^2/s for v,
+        # so with a depth of 100m, velocity (i+1)/100 m/s for u and -(i+1)/100 m/s for v
+        for c, sign in (('u', 1), ('v', -1)):
+            val = np.full((nx, ny), sign*(i+1)*10000, dtype=np.int32)
+            val[2, :] = 0
+            re = ds.createVariable(f'{c}Re', np.int32, ('nx', 'ny'))
+            re.units = 'centimeter^2/sec'
+            re[:] = val
+            im = ds.createVariable(f'{c}Im', np.int32, ('nx', 'ny'))
+            im.units = 'centimeter^2/sec'
+            im[:] = 0
+        ds.close()
+
     yield str(tmp_path / 'grid_atlas.nc'), str(tmp_path / 'h_{con}_atlas.nc')
 
 
@@ -175,3 +198,84 @@ def test_dummy_tpxo_atlas_wrong_constituent(dummy_tpxo_atlas_files, tmp_path):
     tide = uptide.Tides(['M4'])
     with pytest.raises(ValueError, match='contains constituent s2'):
         uptide.TPXOTidalInterpolator(tide, grid_file, data_file)
+
+
+@pytest.fixture
+def dummy_tpxo_uv_file(tmp_path):
+    ds = netCDF4.Dataset(tmp_path / 'u_tpxo9.nc', 'w', format='NETCDF3_CLASSIC')
+    ds.createDimension('nx', 2)
+    ds.createDimension('ny', 2)
+    ds.createDimension('nc', len(constituents))
+    nct = ds.createDimension('nct', 4)
+    con = ds.createVariable('con', 'c', ('nc', 'nct'))
+    con[:] = [x.ljust(nct.size) for x in constituents]
+    amp = (np.arange(len(constituents))[:, np.newaxis, np.newaxis] + 1.)*np.ones((1, 2, 2))
+    for c in 'uv':
+        # velocity amplitude in cm/s: M2 1 cm/s, S2 2 cm/s, etc.
+        a = ds.createVariable(f'{c}a', np.float64, ('nc', 'nx', 'ny'))
+        a.units = 'cm/s'
+        a[:] = amp
+        p = ds.createVariable(f'{c}p', np.float64, ('nc', 'nx', 'ny'))
+        p.units = 'degree GMT'
+        p[:] = 0.
+        # transport amplitude in m^2/s: M2 10 m^2/s, S2 20 m^2/s, etc.
+        A = ds.createVariable(f'{c.upper()}a', np.float64, ('nc', 'nx', 'ny'))
+        A.units = 'meter^2/s'
+        A[:] = 10*amp
+        re = ds.createVariable(f'{c.upper()}Re', np.float64, ('nc', 'nx', 'ny'))
+        re.units = 'meter^2/s'
+        re[:] = 10*amp
+        im = ds.createVariable(f'{c.upper()}Im', np.float64, ('nc', 'nx', 'ny'))
+        im.units = 'meter^2/s'
+        im[:] = 0.
+    filepath = ds.filepath()
+    ds.close()
+    yield filepath
+    os.remove(filepath)
+
+
+@pytest.mark.parametrize('component', ['u', 'v'])
+def test_dummy_tpxo_velocity(dummy_tpxo_grid_file, dummy_tpxo_uv_file, component):
+    selection = [0, 1, 4]
+    tide = _simple_tide(selection)
+    # velocities are returned in m/s
+    tnci = TPXOncTidalComponentInterpolator(tide, dummy_tpxo_grid_file, dummy_tpxo_uv_file,
+                                            component, component)
+    # transports in m^2/s
+    tnciT = TPXOncTidalComponentInterpolator(tide, dummy_tpxo_grid_file, dummy_tpxo_uv_file,
+                                             component, component.upper())
+    for t in [0., 1000., 86400.]:
+        tnci.set_time(t)
+        tnciT.set_time(t)
+        expected = sum([(i+1.0)*np.cos(omega*t) for i, omega in zip(selection, tide.omega)])
+        np.testing.assert_allclose(tnci.get_val([0., 0.]), 0.01*expected)
+        np.testing.assert_allclose(tnciT.get_val([0., 0.]), 10*expected)
+
+
+@pytest.mark.parametrize('ranges', [None, ((-50., 50.), (-10., 10.))])
+def test_dummy_tpxo_atlas_velocity(dummy_tpxo_atlas_files, ranges):
+    grid_file, elev_file = dummy_tpxo_atlas_files
+    uv_file = elev_file.replace('h_{con}', 'u_{con}')
+    selection = [0, 1, 4]
+    tide = _simple_tide(selection)
+    for component, sign in (('u', 1), ('v', -1)):
+        # velocities computed from transport/depth, in m/s
+        tnci = TPXOncTidalComponentInterpolator(tide, grid_file, uv_file, component, component, ranges=ranges)
+        # transports in m^2/s
+        tnciT = TPXOncTidalComponentInterpolator(tide, grid_file, uv_file, component, component.upper(),
+                                                 ranges=ranges)
+        for t in [0., 1000., 86400.]:
+            tnci.set_time(t)
+            tnciT.set_time(t)
+            expected = sign*sum([(i+1.0)*np.cos(omega*t) for i, omega in zip(selection, tide.omega)])
+            for x in ([0., 0.], [150., 0.]):
+                np.testing.assert_allclose(tnci.get_val(x), expected/100.)
+                np.testing.assert_allclose(tnciT.get_val(x), expected)
+
+
+def test_dummy_tpxo_velocity_missing(dummy_tpxo_atlas_files):
+    grid_file, elev_file = dummy_tpxo_atlas_files
+    tide = _simple_tide([0])
+    # the elevation files do not contain velocities or transports
+    with pytest.raises(ValueError, match='No velocity data'):
+        TPXOncTidalComponentInterpolator(tide, grid_file, elev_file, 'u', 'u')
