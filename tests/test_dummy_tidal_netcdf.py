@@ -82,3 +82,96 @@ def test_dummy_tpxo_multiple(dummy_tpxo_grid_file, dummy_tpxo_elev_file):
         tnci.set_time(t)
         expected = sum([(i+1.0)*np.cos(omega*t) for i, omega in zip(selection, tide.omega)])
         np.testing.assert_allclose(tnci.get_val([0., 0.]), expected)
+
+
+@pytest.fixture
+def dummy_tpxo_atlas_files(tmp_path):
+    """Dummy files in TPXO atlas layout: 1D coordinates, a grid file with bathymetry hz
+    (zero on land) but no mask, and a separate elevation file per constituent with
+    integer hRe and hIm in millimeters."""
+    nx, ny = 4, 3
+    lon = np.arange(nx) * 90. + 45.  # fully periodic: 45, 135, 225, 315
+    lat = np.array([-45., 0., 45.])
+    ds = netCDF4.Dataset(tmp_path / 'grid_atlas.nc', 'w', format='NETCDF3_CLASSIC')
+    ds.createDimension('nx', nx)
+    ds.createDimension('ny', ny)
+    for c in 'zuv':
+        ds.createVariable(f'lon_{c}', np.float64, ('nx',))[:] = lon
+        ds.createVariable(f'lat_{c}', np.float64, ('ny',))[:] = lat
+    hz = np.full((nx, ny), 100., dtype=np.float32)
+    hz[2, :] = 0.  # land at lon=225
+    for c in 'zuv':
+        ds.createVariable(f'h{c}', np.float32, ('nx', 'ny'))[:] = hz
+    ds.close()
+
+    for i, constituent in enumerate(constituents):
+        ds = netCDF4.Dataset(tmp_path / f'h_{constituent.lower()}_atlas.nc', 'w', format='NETCDF3_CLASSIC')
+        ds.createDimension('nx', nx)
+        ds.createDimension('ny', ny)
+        nct = ds.createDimension('nct', 4)
+        ds.createVariable('con', 'c', ('nct',))[:] = netCDF4.stringtochar(np.array([constituent.lower().ljust(nct.size)], 'S4'))[0]
+        ds.createVariable('lon_z', np.float64, ('nx',))[:] = lon
+        ds.createVariable('lat_z', np.float64, ('ny',))[:] = lat
+        # give M2 amplitude of 1m, S2 amplitude of 2m, etc. - except on land
+        val = np.full((nx, ny), (i+1)*1000, dtype=np.int32)
+        val[2, :] = 0
+        hRe = ds.createVariable('hRe', np.int32, ('nx', 'ny'))
+        hRe.units = 'millimeter'
+        hRe[:] = val
+        hIm = ds.createVariable('hIm', np.int32, ('nx', 'ny'))
+        hIm.units = 'millimeter'
+        hIm[:] = 0
+        ds.close()
+
+    yield str(tmp_path / 'grid_atlas.nc'), str(tmp_path / 'h_{con}_atlas.nc')
+
+
+def _simple_tide(selection):
+    tide = uptide.Tides([constituents[i] for i in selection])
+    tide.set_initial_time(datetime.datetime(2003, 3, 28, 0, 0, 0))
+    # simplify by setting Greenwich phase to 0 and undoing nodal corrections
+    tide.phi[:] = 0.
+    tide.f[:] = 1
+    tide.u[:] = 0.
+    return tide
+
+
+@pytest.mark.parametrize('ranges', [None, ((-50., 50.), (-10., 10.))])
+def test_dummy_tpxo_atlas(dummy_tpxo_atlas_files, ranges):
+    grid_file, data_file = dummy_tpxo_atlas_files
+    selection = [0, 1, 4]
+    tide = _simple_tide(selection)
+    tnci = uptide.TPXOTidalInterpolator(tide, grid_file, data_file, ranges=ranges)
+
+    for t in [0., 1000., 86400.]:
+        tnci.set_time(t)
+        expected = sum([(i+1.0)*np.cos(omega*t) for i, omega in zip(selection, tide.omega)])
+        # interpolation across the periodic boundary (between lon=315 and lon=45)
+        np.testing.assert_allclose(tnci.get_val([0., 0.]), expected)
+        np.testing.assert_allclose(tnci.get_val([-10., 20.]), expected)
+        # next to land (lon=225), the land value (0) should be ignored
+        np.testing.assert_allclose(tnci.get_val([150., 0.]), expected)
+
+
+def test_dummy_tpxo_atlas_land(dummy_tpxo_atlas_files):
+    grid_file, data_file = dummy_tpxo_atlas_files
+    tide = _simple_tide([0])
+    tnci = uptide.TPXOTidalInterpolator(tide, grid_file, data_file)
+    tnci.set_time(0.)
+    with pytest.raises(uptide.netcdf_reader.CoordinateError):
+        tnci.get_val([225., 0.])
+
+
+def test_dummy_tpxo_atlas_missing_constituent(dummy_tpxo_atlas_files):
+    grid_file, data_file = dummy_tpxo_atlas_files
+    tide = uptide.Tides(['M2', 'M4'])
+    with pytest.raises(FileNotFoundError, match='M4'):
+        uptide.TPXOTidalInterpolator(tide, grid_file, data_file)
+
+
+def test_dummy_tpxo_atlas_wrong_constituent(dummy_tpxo_atlas_files, tmp_path):
+    grid_file, data_file = dummy_tpxo_atlas_files
+    os.rename(data_file.format(con='s2'), data_file.format(con='m4'))
+    tide = uptide.Tides(['M4'])
+    with pytest.raises(ValueError, match='contains constituent s2'):
+        uptide.TPXOTidalInterpolator(tide, grid_file, data_file)

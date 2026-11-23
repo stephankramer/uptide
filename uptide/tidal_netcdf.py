@@ -85,14 +85,15 @@ class TidalNetCDFInterpolator(object):
         self._create_grid()
 
     def load_amplitudes_and_phases(self, amplitude_file_name, amplitude_field_names,
-                                   phase_file_name, phase_field_names):
+                                   phase_file_name, phase_field_names, scale=1.0):
         """Load amplitude and phases of the different constituents where amplitudes
         and phases are stored as separate fields in the NetCDF. The amplitude and phase
         field names should be in the same order as tide.constituents. ampltide and
         phase file_name may be a single string, or an array of strings to indicate
-        seperate filenames for each constituent."""
+        seperate filenames for each constituent. The amplitudes are multiplied by
+        scale (e.g. to convert units)."""
 
-        amp = numpy.array(self._collect_fields_val(amplitude_file_name, amplitude_field_names))
+        amp = scale*numpy.array(self._collect_fields_val(amplitude_file_name, amplitude_field_names))
         phase = numpy.array(self._collect_fields_val(phase_file_name, phase_field_names))
         self.real_part = amp*numpy.cos(phase*_deg2rad)
         self.imag_part = -amp*numpy.sin(phase*_deg2rad)
@@ -102,14 +103,15 @@ class TidalNetCDFInterpolator(object):
         # but everything I tried was slower than this simple version
 
     def load_complex_components(self, real_file_name, real_field_names,
-                                imag_file_name, imag_field_names):
+                                imag_file_name, imag_field_names, scale=1.0):
         """Load real and imaginary component of the different constituents where the complex
         components are stored as separate fields in the NetCDF. The complex component
         field names should be in the same order as tide.constituents.
         The file_name may be a single string, or an array of strings to indicate
-        seperate filenames for each constituent."""
-        self.real_part = numpy.array(self._collect_fields_val(real_file_name, real_field_names))
-        self.imag_part = numpy.array(self._collect_fields_val(imag_file_name, imag_field_names))
+        seperate filenames for each constituent. Both components are multiplied by
+        scale (e.g. to convert units)."""
+        self.real_part = scale*numpy.array(self._collect_fields_val(real_file_name, real_field_names))
+        self.imag_part = scale*numpy.array(self._collect_fields_val(imag_file_name, imag_field_names))
 
     def _collect_fields_val(self, file_name, field_names):
         val = []
@@ -128,29 +130,31 @@ class TidalNetCDFInterpolator(object):
 
     def load_amplitudes_and_phases_block(self,
                                          amplitude_file_name, amplitude_field_name, amplitude_field_components,
-                                         phase_file_name, phase_field_name, phase_field_components):
+                                         phase_file_name, phase_field_name, phase_field_components,
+                                         scale=1.0):
         """Load amplitude and phases of the different constituents where amplitudes
         and phases are stored in a single 3d field. The first dimension of this
         field should correspond the different constituents stored. ..._field_components
         refers to which indices of this first dimension correspond to the constituents
-        specified in tide.consituents."""
+        specified in tide.consituents. The amplitudes are multiplied by scale."""
 
-        amp = numpy.array(self._collect_fields_block(amplitude_file_name, amplitude_field_name, amplitude_field_components))
+        amp = scale*numpy.array(self._collect_fields_block(amplitude_file_name, amplitude_field_name, amplitude_field_components))
         phase = numpy.array(self._collect_fields_block(phase_file_name, phase_field_name, phase_field_components))
         self.real_part = amp*numpy.cos(phase*_deg2rad)
         self.imag_part = -amp*numpy.sin(phase*_deg2rad)
 
     def load_complex_components_block(self,
                                       real_file_name, real_field_name, real_field_components,
-                                      imag_file_name, imag_field_name, imag_field_components):
+                                      imag_file_name, imag_field_name, imag_field_components,
+                                      scale=1.0):
         """Load complex components of the different constituents where the components
         are stored in a single 3d field. The first dimension of this
         field should correspond the different constituents stored. ..._field_components
         refers to which indices of this first dimension correspond to the constituents
-        specified in tide.consituents."""
+        specified in tide.consituents. Both components are multiplied by scale."""
 
-        self.real_part = numpy.array(self._collect_fields_block(real_file_name, real_field_name, real_field_components))
-        self.imag_part = numpy.array(self._collect_fields_block(imag_file_name, imag_field_name, imag_field_components))
+        self.real_part = scale*numpy.array(self._collect_fields_block(real_file_name, real_field_name, real_field_components))
+        self.imag_part = scale*numpy.array(self._collect_fields_block(imag_file_name, imag_field_name, imag_field_components))
 
     def _collect_fields_block(self, file_name, field_name, field_components):
         if file_name == self.grid_file_name:
@@ -198,27 +202,94 @@ def AMCGTidalInterpolator(tide, netcdf_file_name, ranges=None):
     return tnci
 
 
+def _decode_constituent_name(con):
+    """Convert a char array from a netCDF 'con' variable into a lower case string."""
+    return numpy.asarray(con).tobytes().decode().strip(' \x00').lower()
+
+
+def _constituent_indices(con_variable, tide):
+    """Return the indices in the netCDF 'con' variable (or similar) of tide.constituents."""
+    constituent_index = dict((_decode_constituent_name(constituent), i) for i, constituent in enumerate(con_variable[:]))
+    return [constituent_index[constituent.lower()] for constituent in tide.constituents]
+
+
+_tpxo_units_scale = {'meter': 1.0, 'm': 1.0, 'millimeter': 1e-3, 'mm': 1e-3}
+
+
+def _tpxo_elevation_scale(variable):
+    """Factor to convert the TPXO elevation variable to meters, based on its units attribute."""
+    units = getattr(variable, 'units', 'meter')
+    if isinstance(units, bytes):
+        units = units.decode()
+    units = units.strip().lower()
+    if units not in _tpxo_units_scale:
+        raise ValueError("Unrecognized units '{}' of TPXO elevation data".format(units))
+    return _tpxo_units_scale[units]
+
+
 def TPXOTidalInterpolator(tide, grid_file_name, data_file_name,
                           ranges=None):
     """Create a TidalNetCDFInterpolator from OTPSnc NetCDF files, where
-    the grid is stored in a separate file (with "lon_z", "lat_z" and "mz"
-    fields). The actual data is read from a seperate file with hRe and hIm
-    fields."""
+    the grid is stored in a separate file (with "lon_z", "lat_z" and either a "mz"
+    mask field, or "hz" bathymetry field with zeros on land).
+
+    The actual data is read from hRe and hIm fields. These may either be stored in
+    a single data file containing all constituents, e.g.:
+
+        TPXOTidalInterpolator(tide, 'grid_tpxo9.nc', 'h_tpxo9.v1.nc')
+
+    or in separate files per constituent, as in the TPXO atlas versions. In that case
+    data_file_name should be a format string containing '{con}', which is substituted
+    by the lower case constituent name, e.g.:
+
+        TPXOTidalInterpolator(tide, 'grid_tpxo10atlas_v2.nc', 'h_{con}_tpxo10_atlas_30_v2.nc')
+
+    The units of the data (meter or millimeter) are read from the data file(s), and
+    returned elevations are always in meters.
+
+    NOTE: specifying ranges is strongly recommended, in particular for the high
+    resolution atlas versions."""
     # read grid, ranges and mask from grid netCDF
     tnci = TidalNetCDFInterpolator(tide, grid_file_name,
                                    ('nx', 'ny'), ('lon_z', 'lat_z'), ranges=ranges,
                                    coordinate_periods=(360., None))
     if "mz" in tnci.nci.nc.variables:
         tnci.set_mask("mz")
+    elif "hz" in tnci.nci.nc.variables:
+        # atlas grid files have no mask, but the bathymetry is zero on land
+        tnci.set_mask_from_fill_value("hz", 0.)
 
-    # constituents available in the netCDF data file
-    constituents = netcdf_reader.NetCDFFile(data_file_name, 'r').variables['con'][:]
-    # dict that maps constituent names to indices
-    constituent_index = dict(((constituent.tobytes().decode().strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
-    # the indices of the requested constituents
-    components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
-    tnci.load_complex_components_block(data_file_name, 'hRe', components,
-                                       data_file_name, 'hIm', components)
+    if '{con}' in data_file_name:
+        # separate file per constituent
+        file_names = []
+        scale = None
+        for constituent in tide.constituents:
+            file_name = data_file_name.format(con=constituent.lower())
+            if not os.path.exists(file_name):
+                raise FileNotFoundError("TPXO data file {} for constituent {} not found".format(file_name, constituent))
+            nc = netcdf_reader.NetCDFFile(file_name, 'r')
+            if 'con' in nc.variables:
+                file_constituent = _decode_constituent_name(nc.variables['con'][:])
+                if file_constituent != constituent.lower():
+                    raise ValueError("TPXO data file {} contains constituent {}, expected {}".format(
+                        file_name, file_constituent, constituent.lower()))
+            file_scale = _tpxo_elevation_scale(nc.variables['hRe'])
+            if scale is None:
+                scale = file_scale
+            elif scale != file_scale:
+                raise ValueError("Inconsistent units in TPXO data files")
+            nc.close()
+            file_names.append(file_name)
+        n = len(file_names)
+        tnci.load_complex_components(file_names, ['hRe']*n, file_names, ['hIm']*n, scale=scale)
+    else:
+        # single file with all constituents
+        nc = netcdf_reader.NetCDFFile(data_file_name, 'r')
+        components = _constituent_indices(nc.variables['con'], tide)
+        scale = _tpxo_elevation_scale(nc.variables['hRe'])
+        nc.close()
+        tnci.load_complex_components_block(data_file_name, 'hRe', components,
+                                           data_file_name, 'hIm', components, scale=scale)
     return tnci
 
 
@@ -239,12 +310,10 @@ def TPXOncTidalComponentInterpolator(tide, grid_file_name, data_file_name,
     if mask_name in tnci.nci.nc.variables:
         tnci.set_mask(mask_name)
 
-    # constituents available in the netCDF data file
-    constituents = netcdf_reader.NetCDFFile(data_file_name, 'r').variables['con'][:]
-    # dict that maps constituent names to indices
-    constituent_index = dict(((constituent.tobytes().decode().strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
-    # the indices of the requested constituents
-    components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
+    if '{con}' in data_file_name:
+        raise NotImplementedError("Velocities/transports from per-constituent (atlas) TPXO files are not supported yet")
+    # the indices of the requested constituents in the netCDF data file
+    components = _constituent_indices(netcdf_reader.NetCDFFile(data_file_name, 'r').variables['con'], tide)
     tnci.load_amplitudes_and_phases_block(data_file_name, '{}a'.format(field_name), components,
                                           data_file_name, '{}p'.format(field_name), components)
     return tnci
@@ -266,12 +335,8 @@ def FESTidalInterpolator(tide, fes_file_name, ranges=None):
     fill_value = tnci.nci.nc.variables['Ha'].missing_value
     tnci.set_mask_from_fill_value('Ha', fill_value)
 
-    # constituents available in the netCDF file
-    constituents = tnci.nci.nc.variables['spectrum'][:]
-    # dict that maps constituent names to indices
-    constituent_index = dict(((constituent.tobytes().decode("utf-8").strip(' \x00').lower(), i) for i, constituent in enumerate(constituents)))
-    # the indices of the requested constituents
-    components = [constituent_index[constituent.lower()] for constituent in tide.constituents]
+    # the indices of the requested constituents in the netCDF file
+    components = _constituent_indices(tnci.nci.nc.variables['spectrum'], tide)
     tnci.load_amplitudes_and_phases_block(fes_file_name, 'Ha', components,
                                           fes_file_name, 'Hg', components)
     return tnci
