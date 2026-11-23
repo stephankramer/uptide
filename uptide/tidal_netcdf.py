@@ -213,18 +213,114 @@ def _constituent_indices(con_variable, tide):
     return [constituent_index[constituent.lower()] for constituent in tide.constituents]
 
 
-_tpxo_units_scale = {'meter': 1.0, 'm': 1.0, 'millimeter': 1e-3, 'mm': 1e-3}
+# recognized units in TPXO files: maps normalized units string to (quantity, factor to convert to SI)
+_tpxo_units_table = {
+    'm': ('elevation', 1.0),
+    'mm': ('elevation', 1e-3),
+    'm/s': ('velocity', 1.0),
+    'cm/s': ('velocity', 1e-2),
+    'm^2/s': ('transport', 1.0),
+    'cm^2/s': ('transport', 1e-4),
+}
 
 
-def _tpxo_elevation_scale(variable):
-    """Factor to convert the TPXO elevation variable to meters, based on its units attribute."""
-    units = getattr(variable, 'units', 'meter')
+# units assumed if no units attribute is present, following the OTPSnc conventions
+_tpxo_default_units = {'hRe': 'meter', 'ua': 'cm/s', 'va': 'cm/s', 'Ua': 'meter^2/s', 'Va': 'meter^2/s',
+                       'URe': 'meter^2/s', 'VRe': 'meter^2/s'}
+
+
+def _tpxo_units(variable, field_name):
+    """Return (quantity, scale) for a TPXO netCDF variable based on its units attribute,
+    where quantity is 'elevation', 'velocity' or 'transport' and scale is the factor that converts
+    the values to SI units (m, m/s or m^2/s)."""
+    units = getattr(variable, 'units', None) or _tpxo_default_units.get(field_name)
+    if units is None:
+        raise ValueError("TPXO netCDF variable {} has no units attribute".format(field_name))
     if isinstance(units, bytes):
         units = units.decode()
-    units = units.strip().lower()
-    if units not in _tpxo_units_scale:
-        raise ValueError("Unrecognized units '{}' of TPXO elevation data".format(units))
-    return _tpxo_units_scale[units]
+    normalized = units.strip().lower().replace(' ', '')
+    for long_name, short_name in (('centimeter', 'cm'), ('millimeter', 'mm'), ('meter', 'm'), ('sec', 's')):
+        normalized = normalized.replace(long_name, short_name)
+    if normalized not in _tpxo_units_table:
+        raise ValueError("Unrecognized units '{}' in TPXO netCDF file".format(units))
+    return _tpxo_units_table[normalized]
+
+
+def _tpxo_set_mask(tnci, grid_field_name):
+    """Set the land mask from the "mX" field, or if not present (in TPXO atlas grid files)
+    from the bathymetry "hX" field which is zero on land."""
+    variables = tnci.nci.nc.variables
+    if 'm{}'.format(grid_field_name) in variables:
+        tnci.set_mask('m{}'.format(grid_field_name))
+    elif 'h{}'.format(grid_field_name) in variables:
+        tnci.set_mask_from_fill_value('h{}'.format(grid_field_name), 0.)
+
+
+class _TPXODataFiles(object):
+    """Describes the TPXO data file(s) for tide.constituents: either a single file with all constituents,
+    or, if data_file_name contains '{con}', a separate file for each constituent."""
+    def __init__(self, tide, data_file_name):
+        self.per_constituent = '{con}' in data_file_name
+        if self.per_constituent:
+            self.file_names = []
+            for constituent in tide.constituents:
+                file_name = data_file_name.format(con=constituent.lower())
+                if not os.path.exists(file_name):
+                    raise FileNotFoundError("TPXO data file {} for constituent {} not found".format(file_name, constituent))
+                nc = netcdf_reader.NetCDFFile(file_name, 'r')
+                if 'con' in nc.variables:
+                    file_constituent = _decode_constituent_name(nc.variables['con'][:])
+                    if file_constituent != constituent.lower():
+                        raise ValueError("TPXO data file {} contains constituent {}, expected {}".format(
+                            file_name, file_constituent, constituent.lower()))
+                nc.close()
+                self.file_names.append(file_name)
+            self.first_file_name = self.file_names[0]
+        else:
+            self.file_name = self.first_file_name = data_file_name
+            nc = netcdf_reader.NetCDFFile(data_file_name, 'r')
+            self.components = _constituent_indices(nc.variables['con'], tide)
+            nc.close()
+
+    def units(self, field_name):
+        """Return (quantity, scale) of field_name, see _tpxo_units(). For per constituent files,
+        these should be the same in all files."""
+        file_names = self.file_names if self.per_constituent else [self.file_name]
+        result = None
+        for file_name in file_names:
+            nc = netcdf_reader.NetCDFFile(file_name, 'r')
+            units = _tpxo_units(nc.variables[field_name], field_name)
+            nc.close()
+            if result is None:
+                result = units
+            elif units != result:
+                raise ValueError("Inconsistent units of {} in TPXO data files".format(field_name))
+        return result
+
+    def variables(self):
+        """Names of variables available in the (first) data file."""
+        nc = netcdf_reader.NetCDFFile(self.first_file_name, 'r')
+        names = set(nc.variables.keys())
+        nc.close()
+        return names
+
+    def load_complex_components(self, tnci, real_field_name, imag_field_name, scale):
+        if self.per_constituent:
+            n = len(self.file_names)
+            tnci.load_complex_components(self.file_names, [real_field_name]*n,
+                                         self.file_names, [imag_field_name]*n, scale=scale)
+        else:
+            tnci.load_complex_components_block(self.file_name, real_field_name, self.components,
+                                               self.file_name, imag_field_name, self.components, scale=scale)
+
+    def load_amplitudes_and_phases(self, tnci, amplitude_field_name, phase_field_name, scale):
+        if self.per_constituent:
+            n = len(self.file_names)
+            tnci.load_amplitudes_and_phases(self.file_names, [amplitude_field_name]*n,
+                                            self.file_names, [phase_field_name]*n, scale=scale)
+        else:
+            tnci.load_amplitudes_and_phases_block(self.file_name, amplitude_field_name, self.components,
+                                                  self.file_name, phase_field_name, self.components, scale=scale)
 
 
 def TPXOTidalInterpolator(tide, grid_file_name, data_file_name,
@@ -253,69 +349,101 @@ def TPXOTidalInterpolator(tide, grid_file_name, data_file_name,
     tnci = TidalNetCDFInterpolator(tide, grid_file_name,
                                    ('nx', 'ny'), ('lon_z', 'lat_z'), ranges=ranges,
                                    coordinate_periods=(360., None))
-    if "mz" in tnci.nci.nc.variables:
-        tnci.set_mask("mz")
-    elif "hz" in tnci.nci.nc.variables:
-        # atlas grid files have no mask, but the bathymetry is zero on land
-        tnci.set_mask_from_fill_value("hz", 0.)
+    _tpxo_set_mask(tnci, 'z')
 
-    if '{con}' in data_file_name:
-        # separate file per constituent
-        file_names = []
-        scale = None
-        for constituent in tide.constituents:
-            file_name = data_file_name.format(con=constituent.lower())
-            if not os.path.exists(file_name):
-                raise FileNotFoundError("TPXO data file {} for constituent {} not found".format(file_name, constituent))
-            nc = netcdf_reader.NetCDFFile(file_name, 'r')
-            if 'con' in nc.variables:
-                file_constituent = _decode_constituent_name(nc.variables['con'][:])
-                if file_constituent != constituent.lower():
-                    raise ValueError("TPXO data file {} contains constituent {}, expected {}".format(
-                        file_name, file_constituent, constituent.lower()))
-            file_scale = _tpxo_elevation_scale(nc.variables['hRe'])
-            if scale is None:
-                scale = file_scale
-            elif scale != file_scale:
-                raise ValueError("Inconsistent units in TPXO data files")
-            nc.close()
-            file_names.append(file_name)
-        n = len(file_names)
-        tnci.load_complex_components(file_names, ['hRe']*n, file_names, ['hIm']*n, scale=scale)
-    else:
-        # single file with all constituents
-        nc = netcdf_reader.NetCDFFile(data_file_name, 'r')
-        components = _constituent_indices(nc.variables['con'], tide)
-        scale = _tpxo_elevation_scale(nc.variables['hRe'])
-        nc.close()
-        tnci.load_complex_components_block(data_file_name, 'hRe', components,
-                                           data_file_name, 'hIm', components, scale=scale)
+    data_files = _TPXODataFiles(tide, data_file_name)
+    quantity, scale = data_files.units('hRe')
+    if quantity != 'elevation':
+        raise ValueError("Units of hRe field in TPXO data file should be meter or millimeter")
+    data_files.load_complex_components(tnci, 'hRe', 'hIm', scale)
     return tnci
 
 
 def TPXOncTidalComponentInterpolator(tide, grid_file_name, data_file_name,
                                      grid_field_name, field_name, ranges=None):
-    """Create a TidalNetCDFInterpolator from OTPSnc NetCDF files, where
-    the grid is stored in a separate file (with "lon_X", "lat_X" and "mX"
-    fields), where X is velocity component u or v. The actual phase and amplitude data is read
-    from a seperate file with Ya and Yp fields, where Y=u,v, U, V (small caps is speeds, CAPS gives
-    transports."""
+    """Create a TidalNetCDFInterpolator for a velocity or transport component from OTPSnc
+    NetCDF files, where the grid is stored in a separate file (with "lon_X" and "lat_X"
+    fields, and either a "mX" mask field or "hX" bathymetry field with zeros on land),
+    where X=grid_field_name is u or v.
+
+    The field_name should be either 'u' or 'v' for the eastward or northward depth averaged
+    velocity, in which case values are returned in m/s, or 'U' or 'V' for the eastward or
+    northward (depth integrated) transport, in which case values are returned in m^2/s.
+
+    NOTE: in uptide versions up to 1.2, velocities were returned in cm/s (the units used
+    in the TPXO files) instead of m/s.
+
+    Similar to TPXOTidalInterpolator(), the data may either be stored in a single file
+    for all constituents, or in a separate file per constituent, as in the TPXO atlas
+    versions, by specifying a format string containing '{con}' as data_file_name, e.g.:
+
+        TPXOncTidalComponentInterpolator(tide, 'grid_tpxo10atlas_v2.nc', 'u_{con}_tpxo10_atlas_30_v2.nc',
+                                         'u', 'u', ranges=ranges)
+
+    The data file(s) should contain either amplitudes and phases (e.g. "ua" and "up"), or complex
+    components (e.g. "URe" and "UIm" or "uRe" and "uIm"). Whether these represent velocities or
+    transports is determined from their units attribute. If depth averaged velocities are requested
+    but only transports are available (as in the TPXO atlas versions), the velocities are computed by
+    dividing the transport by the depth "hX" from the grid file."""
+    if field_name not in ('u', 'v', 'U', 'V'):
+        raise ValueError("field_name should be one of 'u', 'v', 'U' or 'V'")
     # read grid, ranges and mask from grid netCDF
     tnci = TidalNetCDFInterpolator(tide, grid_file_name,
                                    ('nx', 'ny'),
                                    ('lon_{}'.format(grid_field_name),
                                     'lat_{}'.format(grid_field_name)), ranges=ranges,
                                    coordinate_periods=(360., None))
-    mask_name = 'm{}'.format(grid_field_name)
-    if mask_name in tnci.nci.nc.variables:
-        tnci.set_mask(mask_name)
+    _tpxo_set_mask(tnci, grid_field_name)
 
-    if '{con}' in data_file_name:
-        raise NotImplementedError("Velocities/transports from per-constituent (atlas) TPXO files are not supported yet")
-    # the indices of the requested constituents in the netCDF data file
-    components = _constituent_indices(netcdf_reader.NetCDFFile(data_file_name, 'r').variables['con'], tide)
-    tnci.load_amplitudes_and_phases_block(data_file_name, '{}a'.format(field_name), components,
-                                          data_file_name, '{}p'.format(field_name), components)
+    data_files = _TPXODataFiles(tide, data_file_name)
+    variables = data_files.variables()
+
+    # candidate (load method, field names) for both upper and lower case names - each
+    # may store either velocity or transport (determined from the units)
+    candidates = []
+    for name in (field_name, field_name.swapcase()):
+        candidates.append(('complex', name + 'Re', name + 'Im'))
+        candidates.append(('ampphase', name + 'a', name.lower() + 'p'))
+    available = {}
+    for method, field1, field2 in candidates:
+        if field1 in variables and field2 in variables:
+            quantity, scale = data_files.units(field1)
+            available.setdefault(quantity, (method, field1, field2, scale))
+
+    requested = 'velocity' if field_name.islower() else 'transport'
+    if requested in available:
+        method, field1, field2, scale = available[requested]
+        divide_by_depth = False
+    elif requested == 'velocity' and 'transport' in available:
+        method, field1, field2, scale = available['transport']
+        divide_by_depth = True
+    else:
+        raise ValueError("No {} data for component {} found in TPXO data file {}".format(
+            requested, field_name, data_files.first_file_name))
+
+    if method == 'complex':
+        data_files.load_complex_components(tnci, field1, field2, scale)
+    else:
+        data_files.load_amplitudes_and_phases(tnci, field1, field2, scale)
+
+    if divide_by_depth:
+        depth_field_name = 'h{}'.format(grid_field_name)
+        if depth_field_name not in tnci.nci.nc.variables:
+            raise ValueError("Need depth field {} in TPXO grid file to compute velocities from transports".format(
+                depth_field_name))
+        depth_units = getattr(tnci.nci.nc.variables[depth_field_name], 'units', 'meter')
+        if isinstance(depth_units, bytes):
+            depth_units = depth_units.decode()
+        if depth_units.strip().lower() not in ('m', 'meter', 'meters'):
+            raise ValueError("Unrecognized units '{}' of depth field {}".format(depth_units, depth_field_name))
+        depth = numpy.ma.filled(tnci.nci.get_values(depth_field_name), 0.).astype(float)
+        # land points (zero depth) are masked out anyway, avoid division by zero there
+        wet = depth > 0.
+        inv_depth = numpy.zeros_like(depth)
+        inv_depth[wet] = 1./depth[wet]
+        tnci.real_part = tnci.real_part*inv_depth
+        tnci.imag_part = tnci.imag_part*inv_depth
+
     return tnci
 
 
